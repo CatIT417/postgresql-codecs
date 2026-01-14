@@ -1,0 +1,144 @@
+cabal-version: 3.0
+name: postgresql-mapping
+version: 0
+category: PostgreSQL, Codecs
+synopsis: Driver-agnostic PostgreSQL type and statement mapping library
+description:
+homepage: https://github.com/nikita-volkov/postgresql-mapping
+bug-reports: https://github.com/nikita-volkov/postgresql-mapping/issues
+author: Nikita Volkov <nikita.y.volkov@mail.ru>
+maintainer: Nikita Volkov <nikita.y.volkov@mail.ru>
+copyright: (c) 2026, Nikita Volkov
+license: MIT
+license-file: LICENSE
+extra-doc-files:
+  LICENSE
+
+source-repository head
+  type: git
+  location: https://github.com/nikita-volkov/postgresql-mapping
+
+common base
+  default-language: Haskell2010
+  default-extensions:
+    ApplicativeDo
+    BangPatterns
+    BinaryLiterals
+    BlockArguments
+    ConstraintKinds
+    DataKinds
+    DefaultSignatures
+    DeriveDataTypeable
+    DeriveFoldable
+    DeriveFunctor
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    DuplicateRecordFields
+    EmptyDataDecls
+    FlexibleContexts
+    FlexibleInstances
+    FunctionalDependencies
+    GADTs
+    GeneralizedNewtypeDeriving
+    LambdaCase
+    LiberalTypeSynonyms
+    MagicHash
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    NoFieldSelectors
+    NoImplicitPrelude
+    NoMonomorphismRestriction
+    NumericUnderscores
+    OverloadedRecordDot
+    OverloadedStrings
+    ParallelListComp
+    PatternGuards
+    QuasiQuotes
+    RankNTypes
+    RecordWildCards
+    ScopedTypeVariables
+    StandaloneDeriving
+    StrictData
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    TypeFamilies
+    TypeOperators
+    UnboxedTuples
+    ViewPatterns
+
+common executable
+  import: base
+  ghc-options:
+    -O2
+    -threaded
+    -with-rtsopts=-N
+    -rtsopts
+    -funbox-strict-fields
+
+common test
+  import: base
+  ghc-options:
+    -threaded
+    -with-rtsopts=-N
+
+library
+  import: base
+  hs-source-dirs: src/library
+  exposed-modules:
+    PostgresqlTypes.Codec
+    PostgresqlTypes.Mapping
+    PostgresqlTypes.Mapping.Primitives
+
+  other-modules:
+    PostgresqlTypes.Codec.Columns
+    PostgresqlTypes.Codec.DecodingError
+    PostgresqlTypes.Codec.Dimension
+    PostgresqlTypes.Codec.Dimensionality
+    PostgresqlTypes.Codec.Dimensionality.Writes
+    PostgresqlTypes.Codec.Fields
+    PostgresqlTypes.Codec.Nullability
+    PostgresqlTypes.Codec.Params
+    PostgresqlTypes.Codec.Prelude
+    PostgresqlTypes.Codec.Result
+    PostgresqlTypes.Codec.Scalar
+    PostgresqlTypes.Mapping.MapsToScalar
+    PostgresqlTypes.Mapping.ParameterizesStatement
+
+  build-depends:
+    QuickCheck >=2.14 && <3,
+    base >=4.11 && <5,
+    bytestring >=0.10 && <0.13,
+    containers >=0.6 && <0.9,
+    invariant ^>=0.6.4,
+    lawful-conversions ^>=0.3,
+    mtl >=2.2 && <3,
+    postgresql-types,
+    profunctors ^>=5.6 && <6,
+    ptr-peeker ^>=0.1,
+    ptr-poker ^>=0.1.2.16,
+    tagged ^>=0.8.9,
+    text >=1.2 && <3,
+    text-builder ^>=1.0.0.4,
+    time >=1.12 && <2,
+    transformers >=0.5 && <0.7,
+    uuid >=1.3 && <2,
+    vector ^>=0.13,
+
+library demo
+  import: base
+  hs-source-dirs: src/demo
+  exposed-modules:
+    Demo.Statements
+    Demo.Types
+
+  other-modules:
+    Demo.Statements.SelectArtistById
+    Demo.Types.Artist
+    Demo.Types.Genre
+
+  build-depends:
+    postgresql-mapping,
+    rerebase ^>=1.22,

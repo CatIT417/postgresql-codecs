@@ -4,3 +4,8 @@ allow-newer:
   *:base,
   *:ghc,
   *:template-haskell,
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/postgresql-types
+  tag: 17b7976e6ed27e1356c4a42dcbf4920f44691727
