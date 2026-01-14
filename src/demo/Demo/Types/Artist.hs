@@ -1,7 +1,7 @@
 module Demo.Types.Artist where
 
 import Demo.Types.Genre (Genre)
-import PostgresqlTypes.Mapping
+import PostgresqlMapping.Mapping
 import Prelude hiding (Int8, Text)
 
 data Artist = Artist
