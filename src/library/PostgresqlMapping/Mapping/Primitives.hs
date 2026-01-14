@@ -1,6 +1,0 @@
-module PostgresqlMapping.Mapping.Primitives
-  ( module PostgresqlTypes.Primitive.Types,
-  )
-where
-
-import PostgresqlTypes.Primitive.Types

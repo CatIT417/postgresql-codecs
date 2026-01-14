@@ -1,19 +1,19 @@
 module PostgresqlMapping.Mapping.MapsToScalar where
 
 import qualified PostgresqlMapping.Core as Codec
-import qualified PostgresqlTypes.Primitive as Primitive
+import qualified PostgresqlTypes as Standard
 
 class MapsToScalar a where
   scalarOf :: Codec.Scalar a
 
-instance MapsToScalar Primitive.Int8 where
-  scalarOf = Codec.primitive
+instance MapsToScalar Standard.Int8 where
+  scalarOf = Codec.standard
 
-instance MapsToScalar Primitive.Text where
-  scalarOf = Codec.primitive
+instance MapsToScalar Standard.Text where
+  scalarOf = Codec.standard
 
-instance MapsToScalar Primitive.Timestamptz where
-  scalarOf = Codec.primitive
+instance MapsToScalar Standard.Timestamptz where
+  scalarOf = Codec.standard
 
 field :: forall a b c. (MapsToScalar a) => Codec.Dimensionality a b -> Codec.Nullability b c -> Codec.Fields c c
 field =

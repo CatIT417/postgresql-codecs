@@ -90,7 +90,7 @@ library
   exposed-modules:
     PostgresqlMapping.Core
     PostgresqlMapping.Mapping
-    PostgresqlMapping.Mapping.Primitives
+    PostgresqlMapping.Mapping.StandardTypes
 
   other-modules:
     PostgresqlMapping.Core.Columns

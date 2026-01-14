@@ -35,7 +35,7 @@ module PostgresqlMapping.Core
 
     -- * Scalar types
     Scalar,
-    primitive,
+    standard,
     enum,
     composite,
 

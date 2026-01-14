@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import PostgresqlMapping.Core.DecodingError
 import PostgresqlMapping.Core.Prelude
-import qualified PostgresqlTypes.Primitive as Primitive
+import qualified PostgresqlTypes as Standard
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -43,31 +43,31 @@ instance Invariant Scalar where
         ..
       }
 
--- | Lift a primitive into Scalar.
-primitive :: forall a. (Primitive.IsPrimitive a) => Scalar a
-primitive =
+-- | Lift a standard Postgres type into Scalar.
+standard :: forall a. (Standard.IsStandardType a) => Scalar a
+standard =
   let -- Convert decoding errors between layers (they have identical shapes)
-      convertError :: Primitive.DecodingError -> DecodingError
-      convertError Primitive.DecodingError {location, reason} =
+      convertError :: Standard.DecodingError -> DecodingError
+      convertError Standard.DecodingError {location, reason} =
         DecodingError
           { location,
             reason = case reason of
-              Primitive.ParsingDecodingErrorReason details input ->
+              Standard.ParsingDecodingErrorReason details input ->
                 ParsingDecodingErrorReason details input
-              Primitive.UnexpectedValueDecodingErrorReason expected actual ->
+              Standard.UnexpectedValueDecodingErrorReason expected actual ->
                 UnexpectedValueDecodingErrorReason expected actual
           }
-      tName = untag (Primitive.typeName @a)
-      bOid = untag (Primitive.baseOid @a)
-      aOid = untag (Primitive.arrayOid @a)
+      tName = untag (Standard.typeName @a)
+      bOid = untag (Standard.baseOid @a)
+      aOid = untag (Standard.arrayOid @a)
    in Scalar
         { schemaName = "",
           typeName = tName,
           baseOid = Just bOid,
           arrayOid = Just aOid,
-          binaryEncoder = Primitive.binaryEncoder,
-          binaryDecoder = fmap (first convertError) (Primitive.binaryDecoder @a),
-          textualEncoder = Primitive.textualEncoder
+          binaryEncoder = Standard.binaryEncoder,
+          binaryDecoder = fmap (first convertError) (Standard.binaryDecoder @a),
+          textualEncoder = Standard.textualEncoder
         }
 
 enum :: (Ord a) => Text -> Text -> [(Text, a)] -> Scalar a
