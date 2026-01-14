@@ -1,6 +1,6 @@
-module PostgresqlTypes.Codec.Dimensionality.Writes where
+module PostgresqlMapping.Core.Dimensionality.Writes where
 
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.Prelude
 import PtrPoker.Write
 
 arrayHeader :: Int32 -> Bool -> Word32 -> [Int32] -> Write

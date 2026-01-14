@@ -1,7 +1,7 @@
-module PostgresqlTypes.Mapping.ParameterizesStatement where
+module PostgresqlMapping.Mapping.ParameterizesStatement where
 
-import qualified PostgresqlTypes.Codec as Codec
-import PostgresqlTypes.Codec.Prelude
+import qualified PostgresqlMapping.Core as Codec
+import PostgresqlMapping.Core.Prelude
 
 class ParameterizesStatement a where
   type ResultOf a

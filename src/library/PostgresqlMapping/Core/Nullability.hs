@@ -1,7 +1,7 @@
-module PostgresqlTypes.Codec.Nullability where
+module PostgresqlMapping.Core.Nullability where
 
-import PostgresqlTypes.Codec.DecodingError
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.DecodingError
+import PostgresqlMapping.Core.Prelude
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder

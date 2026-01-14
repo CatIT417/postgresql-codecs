@@ -1,7 +1,7 @@
-module PostgresqlTypes.Codec.Dimension where
+module PostgresqlMapping.Core.Dimension where
 
 import qualified Data.Vector as Vector
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.Prelude
 
 data Dimension scalar vec = Dimension
   { -- | For constructing the dimension representation during decoding.

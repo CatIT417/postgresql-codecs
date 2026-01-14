@@ -1,6 +1,6 @@
-module PostgresqlTypes.Codec.DecodingError where
+module PostgresqlMapping.Core.DecodingError where
 
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.Prelude
 
 data DecodingError = DecodingError
   { location :: [Text],

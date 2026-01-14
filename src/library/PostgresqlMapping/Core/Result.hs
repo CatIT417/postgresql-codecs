@@ -1,7 +1,7 @@
-module PostgresqlTypes.Codec.Result where
+module PostgresqlMapping.Core.Result where
 
-import PostgresqlTypes.Codec.Columns
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.Columns
+import PostgresqlMapping.Core.Prelude
 
 -- | Result decoder.
 data Result a

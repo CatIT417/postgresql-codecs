@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wno-unused-binds -Wno-unused-imports -Wno-name-shadowing -Wno-incomplete-patterns -Wno-unused-matches -Wno-missing-methods -Wno-unused-record-wildcards -Wno-redundant-constraints -Wno-deprecations -Wno-missing-signatures #-}
 
-module PostgresqlTypes.Codec.Params where
+module PostgresqlMapping.Core.Params where
 
-import PostgresqlTypes.Codec.Dimensionality
-import PostgresqlTypes.Codec.Nullability
-import PostgresqlTypes.Codec.Prelude
-import PostgresqlTypes.Codec.Scalar
+import PostgresqlMapping.Core.Dimensionality
+import PostgresqlMapping.Core.Nullability
+import PostgresqlMapping.Core.Prelude
+import PostgresqlMapping.Core.Scalar
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 

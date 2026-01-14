@@ -1,4 +1,4 @@
-module PostgresqlTypes.Mapping.Primitives
+module PostgresqlMapping.Mapping.Primitives
   ( module PostgresqlTypes.Primitive.Types,
   )
 where

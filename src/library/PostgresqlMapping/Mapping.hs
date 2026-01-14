@@ -1,4 +1,4 @@
-module PostgresqlTypes.Mapping
+module PostgresqlMapping.Mapping
   ( -- * Statement mapping
     ParameterizesStatement (..),
     StatementOf (..),
@@ -50,11 +50,11 @@ module PostgresqlTypes.Mapping
     field,
 
     -- * Primitive types
-    module PostgresqlTypes.Mapping.Primitives,
+    module PostgresqlMapping.Mapping.Primitives,
   )
 where
 
-import PostgresqlTypes.Codec hiding (column, field, param)
-import PostgresqlTypes.Mapping.MapsToScalar
-import PostgresqlTypes.Mapping.ParameterizesStatement
-import PostgresqlTypes.Mapping.Primitives
+import PostgresqlMapping.Core hiding (column, field, param)
+import PostgresqlMapping.Mapping.MapsToScalar
+import PostgresqlMapping.Mapping.ParameterizesStatement
+import PostgresqlMapping.Mapping.Primitives

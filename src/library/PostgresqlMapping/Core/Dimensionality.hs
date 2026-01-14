@@ -1,10 +1,10 @@
-module PostgresqlTypes.Codec.Dimensionality where
+module PostgresqlMapping.Core.Dimensionality where
 
-import PostgresqlTypes.Codec.DecodingError
-import PostgresqlTypes.Codec.Dimension
-import qualified PostgresqlTypes.Codec.Dimensionality.Writes as Writes
-import PostgresqlTypes.Codec.Nullability
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.DecodingError
+import PostgresqlMapping.Core.Dimension
+import qualified PostgresqlMapping.Core.Dimensionality.Writes as Writes
+import PostgresqlMapping.Core.Nullability
+import PostgresqlMapping.Core.Prelude
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder

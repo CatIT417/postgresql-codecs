@@ -1,12 +1,12 @@
 {-# OPTIONS_GHC -Wno-unused-binds -Wno-unused-imports -Wno-name-shadowing -Wno-incomplete-patterns -Wno-unused-matches -Wno-missing-methods -Wno-unused-record-wildcards -Wno-redundant-constraints -Wno-deprecations -Wno-missing-signatures #-}
 
-module PostgresqlTypes.Codec.Scalar where
+module PostgresqlMapping.Core.Scalar where
 
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import PostgresqlTypes.Codec.DecodingError
-import PostgresqlTypes.Codec.Prelude
+import PostgresqlMapping.Core.DecodingError
+import PostgresqlMapping.Core.Prelude
 import qualified PostgresqlTypes.Primitive as Primitive
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write

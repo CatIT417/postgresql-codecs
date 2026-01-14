@@ -1,10 +1,10 @@
-module PostgresqlTypes.Codec.Fields where
+module PostgresqlMapping.Core.Fields where
 
-import PostgresqlTypes.Codec.DecodingError
-import PostgresqlTypes.Codec.Dimensionality
-import PostgresqlTypes.Codec.Nullability
-import PostgresqlTypes.Codec.Prelude
-import PostgresqlTypes.Codec.Scalar
+import PostgresqlMapping.Core.DecodingError
+import PostgresqlMapping.Core.Dimensionality
+import PostgresqlMapping.Core.Nullability
+import PostgresqlMapping.Core.Prelude
+import PostgresqlMapping.Core.Scalar
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder

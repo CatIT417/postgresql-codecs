@@ -1,4 +1,4 @@
-module PostgresqlTypes.Codec
+module PostgresqlMapping.Core
   ( -- * Errors
     DecodingError (..),
     DecodingErrorReason (..),
@@ -45,12 +45,12 @@ module PostgresqlTypes.Codec
   )
 where
 
-import PostgresqlTypes.Codec.Columns
-import PostgresqlTypes.Codec.DecodingError
-import PostgresqlTypes.Codec.Dimension
-import PostgresqlTypes.Codec.Dimensionality
-import PostgresqlTypes.Codec.Fields
-import PostgresqlTypes.Codec.Nullability
-import PostgresqlTypes.Codec.Params
-import PostgresqlTypes.Codec.Result
-import PostgresqlTypes.Codec.Scalar
+import PostgresqlMapping.Core.Columns
+import PostgresqlMapping.Core.DecodingError
+import PostgresqlMapping.Core.Dimension
+import PostgresqlMapping.Core.Dimensionality
+import PostgresqlMapping.Core.Fields
+import PostgresqlMapping.Core.Nullability
+import PostgresqlMapping.Core.Params
+import PostgresqlMapping.Core.Result
+import PostgresqlMapping.Core.Scalar

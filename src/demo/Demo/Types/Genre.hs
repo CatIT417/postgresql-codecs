@@ -1,6 +1,6 @@
 module Demo.Types.Genre where
 
-import PostgresqlTypes.Mapping
+import PostgresqlMapping.Mapping
 import Prelude hiding (Int8, Text)
 
 data Genre = Rock | Pop | Jazz

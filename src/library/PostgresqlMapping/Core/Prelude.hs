@@ -1,4 +1,4 @@
-module PostgresqlTypes.Codec.Prelude
+module PostgresqlMapping.Core.Prelude
   ( module Exports,
   )
 where
