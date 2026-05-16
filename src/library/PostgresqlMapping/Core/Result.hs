@@ -6,8 +6,8 @@ import PostgresqlMapping.Core.Prelude
 -- | Result decoder.
 data Result a
   = SingleRow (Columns a)
-  | forall row. Multirow (Columns row) (Vector row -> a)
-  | RowsAffected (Int -> a)
+  | forall row. Multirow (Columns row) (Vector row -> Either Text a)
+  | RowsAffected (Int -> Either Text a)
 
 oneRow :: Columns row -> Result row
 oneRow = error "TODO"
