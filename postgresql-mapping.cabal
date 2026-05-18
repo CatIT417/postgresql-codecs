@@ -90,7 +90,6 @@ library
   exposed-modules:
     PostgresqlMapping.Core
     PostgresqlMapping.Mapping
-    PostgresqlMapping.Mapping.StandardTypes
 
   other-modules:
     PostgresqlMapping.Core.Columns
@@ -108,13 +107,15 @@ library
     PostgresqlMapping.Mapping.ParameterizesStatement
 
   build-depends:
+    attoparsec >=0.14 && <0.15,
     base >=4.11 && <5,
     bytestring >=0.10 && <0.13,
     containers >=0.6 && <0.9,
     invariant ^>=0.6.4,
     lawful-conversions ^>=0.3,
     mtl >=2.2 && <3,
-    postgresql-types,
+    postgresql-types ^>=0.1,
+    postgresql-types-algebra ^>=0.1,
     profunctors ^>=5.6 && <6,
     ptr-peeker ^>=0.1,
     ptr-poker ^>=0.1.2.16,

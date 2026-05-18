@@ -50,11 +50,11 @@ module PostgresqlMapping.Mapping
     field,
 
     -- * Standard types
-    module PostgresqlMapping.Mapping.StandardTypes,
+    module PostgresqlTypes,
   )
 where
 
 import PostgresqlMapping.Core hiding (column, field, param)
 import PostgresqlMapping.Mapping.MapsToScalar
 import PostgresqlMapping.Mapping.ParameterizesStatement
-import PostgresqlMapping.Mapping.StandardTypes
+import PostgresqlTypes

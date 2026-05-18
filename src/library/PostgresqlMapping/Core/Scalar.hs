@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import PostgresqlMapping.Core.DecodingError
 import PostgresqlMapping.Core.Prelude
-import qualified PostgresqlTypes as Standard
+import qualified PostgresqlTypes.Algebra as Standard
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -44,7 +44,7 @@ instance Invariant Scalar where
       }
 
 -- | Lift a standard Postgres type into Scalar.
-standard :: forall a. (Standard.IsStandardType a) => Scalar a
+standard :: forall a. (Standard.IsScalar a) => Scalar a
 standard =
   let -- Convert decoding errors between layers (they have identical shapes)
       convertError :: Standard.DecodingError -> DecodingError
@@ -57,14 +57,11 @@ standard =
               Standard.UnexpectedValueDecodingErrorReason expected actual ->
                 UnexpectedValueDecodingErrorReason expected actual
           }
-      tName = untag (Standard.typeName @a)
-      bOid = untag (Standard.baseOid @a)
-      aOid = untag (Standard.arrayOid @a)
    in Scalar
         { schemaName = "",
-          typeName = tName,
-          baseOid = Just bOid,
-          arrayOid = Just aOid,
+          typeName = untag (Standard.typeName @a),
+          baseOid = untag (Standard.baseOid @a),
+          arrayOid = untag (Standard.arrayOid @a),
           binaryEncoder = Standard.binaryEncoder,
           binaryDecoder = fmap (first convertError) (Standard.binaryDecoder @a),
           textualEncoder = Standard.textualEncoder
