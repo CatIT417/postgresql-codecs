@@ -88,23 +88,49 @@ library
   import: base
   hs-source-dirs: src/library
   exposed-modules:
-    PostgresqlMapping.Core
-    PostgresqlMapping.Mapping
+    PostgresqlMapping
 
   other-modules:
-    PostgresqlMapping.Core.Columns
-    PostgresqlMapping.Core.DecodingError
-    PostgresqlMapping.Core.Dimension
-    PostgresqlMapping.Core.Dimensionality
-    PostgresqlMapping.Core.Dimensionality.Writes
-    PostgresqlMapping.Core.Fields
-    PostgresqlMapping.Core.Nullability
-    PostgresqlMapping.Core.Params
-    PostgresqlMapping.Core.Prelude
-    PostgresqlMapping.Core.Result
-    PostgresqlMapping.Core.Scalar
-    PostgresqlMapping.Mapping.MapsToScalar
-    PostgresqlMapping.Mapping.ParameterizesStatement
+    PostgresqlMapping.MapsToScalar
+    PostgresqlMapping.ParameterizesStatement
+    PostgresqlMapping.Prelude
+
+  build-depends:
+    base >=4.11 && <5,
+    bytestring >=0.10 && <0.13,
+    invariant ^>=0.6.4,
+    lawful-conversions ^>=0.3,
+    mtl >=2.2 && <3,
+    postgresql-mapping:postgresql-codecs,
+    postgresql-types ^>=0.1,
+    profunctors ^>=5.6 && <6,
+    QuickCheck >=2.14 && <3,
+    tagged ^>=0.8.9,
+    text >=1.2 && <3,
+    text-builder ^>=1.0.0.4,
+    time >=1.12 && <2,
+    transformers >=0.5 && <0.7,
+    uuid >=1.3 && <2,
+    vector ^>=0.13,
+
+library postgresql-codecs
+  import: base
+  hs-source-dirs: src/postgresql-codecs
+  exposed-modules:
+    PostgresqlCodecs
+
+  other-modules:
+    PostgresqlCodecs.Columns
+    PostgresqlCodecs.DecodingError
+    PostgresqlCodecs.Dimension
+    PostgresqlCodecs.Dimensionality
+    PostgresqlCodecs.Dimensionality.Writes
+    PostgresqlCodecs.Fields
+    PostgresqlCodecs.Nullability
+    PostgresqlCodecs.Params
+    PostgresqlCodecs.Prelude
+    PostgresqlCodecs.Result
+    PostgresqlCodecs.Scalar
 
   build-depends:
     attoparsec >=0.14 && <0.15,

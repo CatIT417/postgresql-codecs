@@ -1,7 +1,7 @@
 module Demo.Statements.SelectArtistById where
 
 import Demo.Types
-import PostgresqlMapping.Mapping
+import PostgresqlMapping
 import Prelude hiding (Int8, Text)
 
 data SelectArtistById = SelectArtistById

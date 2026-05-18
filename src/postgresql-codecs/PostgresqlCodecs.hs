@@ -1,16 +1,9 @@
-module PostgresqlMapping.Mapping
-  ( -- * Statement mapping
-    ParameterizesStatement (..),
-    StatementOf (..),
-
-    -- * Scalar mapping
-    MapsToScalar (..),
-
-    -- * Errors
+module PostgresqlCodecs
+  ( -- * Errors
     DecodingError (..),
     DecodingErrorReason (..),
 
-    -- * Parameters
+    -- * Parameter
     Params (..),
     param,
 
@@ -40,12 +33,13 @@ module PostgresqlMapping.Mapping
     Dimension,
     vector,
 
-    -- * Scalar
+    -- * Scalar types
     Scalar,
+    standard,
     enum,
     composite,
 
-    -- ** Composite fields
+    -- * Composite types
     Fields,
     field,
 
@@ -54,7 +48,13 @@ module PostgresqlMapping.Mapping
   )
 where
 
-import PostgresqlMapping.Core hiding (column, field, param)
-import PostgresqlMapping.Mapping.MapsToScalar
-import PostgresqlMapping.Mapping.ParameterizesStatement
+import PostgresqlCodecs.Columns
+import PostgresqlCodecs.DecodingError
+import PostgresqlCodecs.Dimension
+import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.Fields
+import PostgresqlCodecs.Nullability
+import PostgresqlCodecs.Params
+import PostgresqlCodecs.Result
+import PostgresqlCodecs.Scalar
 import PostgresqlTypes

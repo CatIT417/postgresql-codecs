@@ -1,4 +1,4 @@
-module PostgresqlMapping.Core.Prelude
+module PostgresqlMapping.Prelude
   ( module Exports,
   )
 where

@@ -1,6 +1,6 @@
-module PostgresqlMapping.Mapping.MapsToScalar where
+module PostgresqlMapping.MapsToScalar where
 
-import qualified PostgresqlMapping.Core as Codec
+import qualified PostgresqlCodecs as Codec
 import qualified PostgresqlTypes as Standard
 
 class MapsToScalar a where

@@ -1,8 +1,8 @@
-module PostgresqlMapping.Core.Result where
+module PostgresqlCodecs.Result where
 
 import qualified Data.Vector.Generic as GenVec
-import PostgresqlMapping.Core.Columns
-import PostgresqlMapping.Core.Prelude
+import PostgresqlCodecs.Columns
+import PostgresqlCodecs.Prelude
 import qualified VectorExtras.Accumulator as VecAcc
 
 -- | Result decoder.
