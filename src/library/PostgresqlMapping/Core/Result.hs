@@ -1,22 +1,46 @@
 module PostgresqlMapping.Core.Result where
 
+import qualified Data.Vector.Generic as GenVec
 import PostgresqlMapping.Core.Columns
 import PostgresqlMapping.Core.Prelude
+import qualified VectorExtras.Accumulator as VecAcc
 
 -- | Result decoder.
 data Result a
-  = SingleRow (Columns a)
-  | forall row. Multirow (Columns row) (Vector row -> Either Text a)
-  | RowsAffected (Int -> Either Text a)
-
-oneRow :: Columns row -> Result row
-oneRow = error "TODO"
+  = RowsAffected (Int -> Either Text a)
+  | forall row. MaybeRow
+      (Columns row)
+      -- | When the query returns no rows, this value is returned.
+      a
+      -- | When the query returns a single row, this function is used to map it.
+      (row -> a)
+  | OneRow (Columns a)
+  | forall row acc. ManyRows
+      -- | Row decoder.
+      (Columns row)
+      -- | Initial accumulator value.
+      acc
+      -- | Row folding function.
+      (acc -> row -> Either Text acc)
+      -- | Finalizer function.
+      (acc -> Either Text a)
 
 someRow :: Columns row -> Result (Maybe row)
-someRow = error "TODO"
+someRow columnsDecoder =
+  MaybeRow columnsDecoder Nothing Just
 
-manyRows :: Columns row -> Result (Vector row)
-manyRows = error "TODO"
+oneRow :: Columns row -> Result row
+oneRow =
+  OneRow
+
+manyRows :: (GenVec.Vector vec row) => Columns row -> Result (vec row)
+manyRows columnsDecoder =
+  ManyRows
+    columnsDecoder
+    VecAcc.init
+    (\acc row -> Right (VecAcc.add row acc))
+    (\acc -> Right (VecAcc.toVector acc))
 
 rowsAffected :: Result Int
-rowsAffected = error "TODO"
+rowsAffected =
+  RowsAffected Right
