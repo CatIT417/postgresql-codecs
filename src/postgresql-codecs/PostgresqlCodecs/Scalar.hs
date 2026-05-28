@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Prelude
-import qualified PostgresqlTypes.Algebra as Standard
+import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -48,28 +48,28 @@ instance Invariant Scalar where
       }
 
 -- | Lift a standard Postgres type into Scalar.
-standard :: forall a. (Standard.IsScalar a) => Scalar a
+standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
 standard =
   let -- Convert decoding errors between layers (they have identical shapes)
-      convertError :: Standard.DecodingError -> DecodingError
-      convertError Standard.DecodingError {location, reason} =
+      convertError :: PostgresqlTypes.DecodingError -> DecodingError
+      convertError PostgresqlTypes.DecodingError {location, reason} =
         DecodingError
           { location,
             reason = case reason of
-              Standard.ParsingDecodingErrorReason details input ->
+              PostgresqlTypes.ParsingDecodingErrorReason details input ->
                 ParsingDecodingErrorReason details input
-              Standard.UnexpectedValueDecodingErrorReason expected actual ->
+              PostgresqlTypes.UnexpectedValueDecodingErrorReason expected actual ->
                 UnexpectedValueDecodingErrorReason expected actual
           }
    in Scalar
         { schemaName = "",
-          typeName = untag (Standard.typeName @a),
-          baseOid = untag (Standard.baseOid @a),
-          arrayOid = untag (Standard.arrayOid @a),
-          binaryEncoder = Standard.binaryEncoder,
-          binaryDecoder = fmap (first convertError) (Standard.binaryDecoder @a),
-          textualEncoder = Standard.textualEncoder,
-          textualDecoder = Standard.textualDecoder
+          typeName = untag (PostgresqlTypes.typeName @a),
+          baseOid = untag (PostgresqlTypes.baseOid @a),
+          arrayOid = untag (PostgresqlTypes.arrayOid @a),
+          binaryEncoder = PostgresqlTypes.binaryEncoder,
+          binaryDecoder = fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
+          textualEncoder = PostgresqlTypes.textualEncoder,
+          textualDecoder = PostgresqlTypes.textualDecoder
         }
 
 enum :: (Ord a) => Text -> Text -> [(Text, a)] -> Scalar a
