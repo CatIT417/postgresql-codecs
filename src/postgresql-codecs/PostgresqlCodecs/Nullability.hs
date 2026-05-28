@@ -16,12 +16,12 @@ data Nullability a b = Nullability
     binaryEncoderWrapper ::
       (a -> Either EncodingError Write.Write) ->
       (b -> Either EncodingError Write.Write),
-    textualEncoderWrapper ::
-      (a -> TextBuilder.TextBuilder) ->
-      (b -> TextBuilder.TextBuilder),
     textualDecoderWrapper ::
       Atto.Parser a ->
-      Atto.Parser b
+      Atto.Parser b,
+    textualEncoderWrapper ::
+      (a -> Either EncodingError TextBuilder.TextBuilder) ->
+      (b -> Either EncodingError TextBuilder.TextBuilder)
   }
 
 nullable :: Nullability a (Maybe a)
@@ -43,7 +43,7 @@ nullable =
         Nothing -> Right (Write.bInt32 (-1)),
       textualEncoderWrapper = \contentEncoder -> \case
         Just a -> contentEncoder a
-        Nothing -> "NULL",
+        Nothing -> Right "NULL",
       textualDecoderWrapper = \contentDecoder -> do
         Atto.choice
           [ Atto.string "NULL" $> Nothing,

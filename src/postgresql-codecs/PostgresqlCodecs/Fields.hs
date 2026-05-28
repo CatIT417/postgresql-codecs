@@ -15,7 +15,7 @@ data Fields a b = Fields
     binaryEncoder :: a -> Either EncodingError Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError b),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> [TextBuilder.TextBuilder]
+    textualEncoder :: a -> Either EncodingError [TextBuilder.TextBuilder]
   }
 
 instance Functor (Fields a) where
@@ -33,14 +33,17 @@ instance Applicative (Fields a) where
       { count = 0,
         binaryEncoder = const (Right mempty),
         binaryDecoder = pure (Right x),
-        textualEncoder = const []
+        textualEncoder = const (Right [])
       }
   (<*>) left right =
     Fields
       { count = left.count + right.count,
         binaryEncoder = \value -> left.binaryEncoder value <> right.binaryEncoder value,
         binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
-        textualEncoder = \value -> left.textualEncoder value <> right.textualEncoder value
+        textualEncoder = \value -> do
+          leftTexts <- left.textualEncoder value
+          rightTexts <- right.textualEncoder value
+          Right (leftTexts <> rightTexts)
       }
 
 instance Profunctor Fields where
@@ -64,7 +67,7 @@ field scalar dimensionality nullability =
             nullability.binaryDecoderWrapper
               (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
           textualEncoder =
-            pure
+            fmap pure
               . nullability.textualEncoderWrapper
                 (dimensionality.textualEncoder scalar.textualEncoder)
         }

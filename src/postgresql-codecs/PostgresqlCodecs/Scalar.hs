@@ -33,7 +33,7 @@ data Scalar a = Scalar
     binaryEncoder :: a -> Either EncodingError Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError a),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> TextBuilder.TextBuilder,
+    textualEncoder :: a -> Either EncodingError TextBuilder.TextBuilder,
     -- | Decode from Postgres textual format.
     textualDecoder :: Atto.Parser a
   }
@@ -95,7 +95,7 @@ native =
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
           binaryEncoder = \a -> Right (PostgresqlTypes.binaryEncoder a),
           binaryDecoder = fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
-          textualEncoder = PostgresqlTypes.textualEncoder,
+          textualEncoder = \a -> Right (PostgresqlTypes.textualEncoder a),
           textualDecoder = PostgresqlTypes.textualDecoder
         }
 
@@ -158,8 +158,18 @@ enum schema tName variants =
       -- Textual encoder: just output the label
       textEncoder val =
         case lookup val (map (\(l, v) -> (v, l)) variants) of
-          Just label -> TextBuilder.text label
-          Nothing -> error ("Invalid enum value for type: " <> show tName)
+          Just label -> Right (TextBuilder.text label)
+          Nothing ->
+            Left
+              EncodingError
+                { message = "Invalid enum value",
+                  details = [("type", tName)],
+                  param = 0,
+                  inputLocation = [],
+                  inputOffset = 0,
+                  failingInput = "",
+                  expectedInputs = Just (map fst variants)
+                }
 
       textDecoder = do
         label <- Atto.takeText

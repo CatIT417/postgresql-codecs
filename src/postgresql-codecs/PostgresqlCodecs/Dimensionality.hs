@@ -21,8 +21,8 @@ data Dimensionality scalar vec = Dimensionality
       PtrPeeker.Variable (Either DecodingError scalar) ->
       PtrPeeker.Variable (Either DecodingError vec),
     textualEncoder ::
-      (scalar -> TextBuilder.TextBuilder) ->
-      (vec -> TextBuilder.TextBuilder),
+      (scalar -> Either EncodingError TextBuilder.TextBuilder) ->
+      (vec -> Either EncodingError TextBuilder.TextBuilder),
     textualDecoder ::
       Atto.Parser scalar ->
       Atto.Parser vec
