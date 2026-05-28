@@ -1,7 +1,7 @@
 module Demo.Types.Artist where
 
-import Demo.Types.Genre (Genre)
-import PostgresqlMapping
+import Demo.Types.Genre
+import PostgresqlCodecs
 import Prelude hiding (Int8, Text)
 
 data Artist = Artist
@@ -9,12 +9,12 @@ data Artist = Artist
     genre :: Genre
   }
 
-instance MapsToScalar Artist where
-  scalarOf =
-    composite
-      ""
-      "artist"
-      ( Artist
-          <$> lmap (.name) (field d0 nonNullable)
-          <*> lmap (.genre) (field d0 nonNullable)
-      )
+artist :: Scalar Artist
+artist =
+  composite
+    ""
+    "artist"
+    ( Artist
+        <$> lmap (.name) (field standard d0 nonNullable)
+        <*> lmap (.genre) (field genre d0 nonNullable)
+    )
