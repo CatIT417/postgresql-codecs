@@ -1,5 +1,6 @@
 module PostgresqlCodecs.Fields where
 
+import qualified Data.Attoparsec.Text as Atto
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.EncodingError
@@ -15,7 +16,8 @@ data Fields a b = Fields
     binaryEncoder :: a -> Either EncodingError Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError b),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> Either EncodingError [TextBuilder.TextBuilder]
+    textualEncoder :: a -> Either EncodingError [TextBuilder.TextBuilder],
+    textualDecoder :: Atto.Parser b
   }
 
 instance Functor (Fields a) where
@@ -24,7 +26,8 @@ instance Functor (Fields a) where
       { count,
         binaryEncoder,
         binaryDecoder = fmap (fmap f) binaryDecoder,
-        textualEncoder
+        textualEncoder,
+        textualDecoder = fmap f textualDecoder
       }
 
 instance Applicative (Fields a) where
@@ -33,7 +36,8 @@ instance Applicative (Fields a) where
       { count = 0,
         binaryEncoder = const (Right mempty),
         binaryDecoder = pure (Right x),
-        textualEncoder = const (Right [])
+        textualEncoder = const (Right []),
+        textualDecoder = pure x
       }
   (<*>) left right =
     Fields
@@ -43,7 +47,8 @@ instance Applicative (Fields a) where
         textualEncoder = \value -> do
           leftTexts <- left.textualEncoder value
           rightTexts <- right.textualEncoder value
-          Right (leftTexts <> rightTexts)
+          Right (leftTexts <> rightTexts),
+        textualDecoder = error "TODO: Merge with care taken about multiple fields"
       }
 
 instance Profunctor Fields where
@@ -52,7 +57,8 @@ instance Profunctor Fields where
       { count,
         binaryEncoder = \value -> binaryEncoder (f value),
         binaryDecoder = fmap (fmap g) binaryDecoder,
-        textualEncoder = \value -> textualEncoder (f value)
+        textualEncoder = \value -> textualEncoder (f value),
+        textualDecoder = fmap g textualDecoder
       }
 
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
@@ -69,7 +75,9 @@ field scalar dimensionality nullability =
           textualEncoder =
             fmap pure
               . nullability.textualEncoderWrapper
-                (dimensionality.textualEncoder scalar.textualEncoder)
+                (dimensionality.textualEncoder scalar.textualEncoder),
+          textualDecoder =
+            error "TODO: Implement decoding of a composite field. Take care about nesting"
         }
 
 composite :: Text -> Text -> Fields a a -> Scalar a
