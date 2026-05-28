@@ -2,6 +2,7 @@ module PostgresqlCodecs.Nullability where
 
 import qualified Data.Attoparsec.Text as Atto
 import PostgresqlCodecs.DecodingError
+import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Prelude
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -13,8 +14,8 @@ data Nullability a b = Nullability
       PtrPeeker.Variable (Either DecodingError a) ->
       PtrPeeker.Variable (Either DecodingError b),
     binaryEncoderWrapper ::
-      (a -> Write.Write) ->
-      (b -> Write.Write),
+      (a -> Either EncodingError Write.Write) ->
+      (b -> Either EncodingError Write.Write),
     textualEncoderWrapper ::
       (a -> TextBuilder.TextBuilder) ->
       (b -> TextBuilder.TextBuilder),
@@ -35,11 +36,11 @@ nullable =
           _ ->
             fmap (fmap Just) contentDecoder,
       binaryEncoderWrapper = \contentEncoder -> \case
-        Just a ->
-          let content = contentEncoder a
-              contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
-           in contentSize <> content
-        Nothing -> Write.bInt32 (-1),
+        Just a -> do
+          content <- contentEncoder a
+          let contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
+          Right (contentSize <> content)
+        Nothing -> Right (Write.bInt32 (-1)),
       textualEncoderWrapper = \contentEncoder -> \case
         Just a -> contentEncoder a
         Nothing -> "NULL",
@@ -61,16 +62,22 @@ nonNullable =
             pure
               ( Left
                   DecodingError
-                    { location = ["content-nullability"],
-                      reason = UnexpectedValueDecodingErrorReason "false" "true"
+                    { message = "Unexpected NULL value",
+                      details = "Expected non-nullable value, but got NULL",
+                      row = Nothing,
+                      column = Nothing,
+                      inputLocation = ["content-nullability"],
+                      inputOffset = 0,
+                      failingInput = "",
+                      expectedInputs = Nothing
                     }
               )
           _ ->
             contentDecoder,
-      binaryEncoderWrapper = \contentEncoder a ->
-        let content = contentEncoder a
-            contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
-         in contentSize <> content,
+      binaryEncoderWrapper = \contentEncoder a -> do
+        content <- contentEncoder a
+        let contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
+        Right (contentSize <> content),
       textualEncoderWrapper = id,
       textualDecoderWrapper = id
     }

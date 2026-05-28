@@ -7,6 +7,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import PostgresqlCodecs.DecodingError
+import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Prelude
 import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
@@ -29,7 +30,7 @@ data Scalar a = Scalar
     -- When unspecified, the OID may be determined at runtime by looking up by name.
     -- It may also mean that there may be no array type containing this type, which is the case in attempts to double-nest arrays.
     arrayOid :: Maybe Word32,
-    binaryEncoder :: a -> Write.Write,
+    binaryEncoder :: a -> Either EncodingError Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError a),
     -- | Represent in Postgres textual format.
     textualEncoder :: a -> TextBuilder.TextBuilder,
@@ -53,20 +54,46 @@ native =
   let -- Convert decoding errors between layers (they have identical shapes)
       convertError :: PostgresqlTypes.DecodingError -> DecodingError
       convertError PostgresqlTypes.DecodingError {location, reason} =
-        DecodingError
-          { location,
-            reason = case reason of
-              PostgresqlTypes.ParsingDecodingErrorReason details input ->
-                ParsingDecodingErrorReason details input
-              PostgresqlTypes.UnexpectedValueDecodingErrorReason expected actual ->
-                UnexpectedValueDecodingErrorReason expected actual
-          }
+        case reason of
+          PostgresqlTypes.ParsingDecodingErrorReason details input ->
+            DecodingError
+              { message = "Parsing error",
+                details = details,
+                row = Nothing,
+                column = Nothing,
+                inputLocation = location,
+                inputOffset = 0,
+                failingInput = Text.Encoding.decodeUtf8With (\_ _ -> Just '?') input,
+                expectedInputs = Nothing
+              }
+          PostgresqlTypes.UnexpectedValueDecodingErrorReason expected actual ->
+            DecodingError
+              { message = "Unexpected value",
+                details = "Expected: " <> expected <> ", got: " <> actual,
+                row = Nothing,
+                column = Nothing,
+                inputLocation = location,
+                inputOffset = 0,
+                failingInput = actual,
+                expectedInputs = Just [expected]
+              }
+          PostgresqlTypes.UnsupportedValueDecodingErrorReason details value ->
+            DecodingError
+              { message = "Unsupported value",
+                details = details,
+                row = Nothing,
+                column = Nothing,
+                inputLocation = location,
+                inputOffset = 0,
+                failingInput = value,
+                expectedInputs = Nothing
+              }
    in Scalar
         { schemaName = "",
           typeName = untag (PostgresqlTypes.typeName @a),
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
-          binaryEncoder = PostgresqlTypes.binaryEncoder,
+          binaryEncoder = \a -> Right (PostgresqlTypes.binaryEncoder a),
           binaryDecoder = fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
           textualEncoder = PostgresqlTypes.textualEncoder,
           textualDecoder = PostgresqlTypes.textualDecoder
@@ -79,8 +106,18 @@ enum schema tName variants =
       -- Binary encoder: encode as text (enums are text in PostgreSQL wire protocol)
       encoder val =
         case Map.lookup val byValue of
-          Just label -> Write.textUtf8 label
-          Nothing -> error ("Invalid enum value for type: " <> show tName)
+          Just label -> Right (Write.textUtf8 label)
+          Nothing ->
+            Left
+              EncodingError
+                { message = "Unsupported enum value",
+                  details = [("schema", schema), ("type", tName)],
+                  param = 0,
+                  inputLocation = [],
+                  inputOffset = 0,
+                  failingInput = "",
+                  expectedInputs = Nothing
+                }
 
       -- Binary decoder: decode from text and look up in variants map
       decoder = do
@@ -89,14 +126,16 @@ enum schema tName variants =
           Left e ->
             pure
               ( Left
-                  ( DecodingError
-                      { location = [],
-                        reason =
-                          ParsingDecodingErrorReason
-                            (fromString (show e))
-                            bytes
-                      }
-                  )
+                  DecodingError
+                    { message = "Invalid UTF-8",
+                      details = fromString (show e),
+                      row = Nothing,
+                      column = Nothing,
+                      inputLocation = [],
+                      inputOffset = 0,
+                      failingInput = Text.Encoding.decodeUtf8With (\_ _ -> Just '?') bytes,
+                      expectedInputs = Nothing
+                    }
               )
           Right label ->
             case lookup label variants of
@@ -104,14 +143,16 @@ enum schema tName variants =
               Nothing ->
                 pure
                   ( Left
-                      ( DecodingError
-                          { location = [],
-                            reason =
-                              UnexpectedValueDecodingErrorReason
-                                ("One of: " <> Text.intercalate ", " (map fst variants))
-                                label
-                          }
-                      )
+                      DecodingError
+                        { message = "Unexpected enum value",
+                          details = "Expected one of: " <> Text.intercalate ", " (map fst variants),
+                          row = Nothing,
+                          column = Nothing,
+                          inputLocation = [],
+                          inputOffset = 0,
+                          failingInput = label,
+                          expectedInputs = Just (map fst variants)
+                        }
                   )
 
       -- Textual encoder: just output the label

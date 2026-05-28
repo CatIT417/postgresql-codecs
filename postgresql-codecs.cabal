@@ -96,6 +96,7 @@ library
     PostgresqlCodecs.Dimension
     PostgresqlCodecs.Dimensionality
     PostgresqlCodecs.Dimensionality.Writes
+    PostgresqlCodecs.EncodingError
     PostgresqlCodecs.Fields
     PostgresqlCodecs.Nullability
     PostgresqlCodecs.Params

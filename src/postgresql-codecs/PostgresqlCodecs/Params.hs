@@ -3,6 +3,7 @@
 module PostgresqlCodecs.Params where
 
 import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Scalar
@@ -12,7 +13,7 @@ import qualified TextBuilder
 -- | Parameterized query parameters encoder.
 data Params a = Params
   { count :: Int32,
-    binaryEncoder :: [a -> Maybe Write.Write],
+    binaryEncoder :: [a -> Either EncodingError (Maybe Write.Write)],
     textualEncoder :: [a -> TextBuilder.TextBuilder]
   }
 

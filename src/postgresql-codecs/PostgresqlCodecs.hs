@@ -1,7 +1,7 @@
 module PostgresqlCodecs
   ( -- * Errors
     DecodingError (..),
-    DecodingErrorReason (..),
+    EncodingError (..),
 
     -- * Parameter
     Params (..),
@@ -52,6 +52,7 @@ import PostgresqlCodecs.Columns
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimension
 import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Fields
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params

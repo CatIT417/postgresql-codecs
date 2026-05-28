@@ -4,6 +4,7 @@ import qualified Data.Attoparsec.Text as Atto
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimension
 import qualified PostgresqlCodecs.Dimensionality.Writes as Writes
+import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import qualified PtrPeeker
@@ -13,8 +14,8 @@ import qualified TextBuilder
 data Dimensionality scalar vec = Dimensionality
   { binaryEncoder ::
       Word32 ->
-      (scalar -> Write.Write) ->
-      (vec -> Write.Write),
+      (scalar -> Either EncodingError Write.Write) ->
+      (vec -> Either EncodingError Write.Write),
     binaryDecoder ::
       Word32 ->
       PtrPeeker.Variable (Either DecodingError scalar) ->
@@ -47,12 +48,14 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
                 elementNullability.binaryEncoderWrapper scalarEncoder
               body =
                 destruct1
-                  ( \accumulator element ->
-                      accumulator <> elementEncoder element
+                  ( \accumulator element -> do
+                      acc <- accumulator
+                      encoded <- elementEncoder element
+                      Right (acc <> encoded)
                   )
-                  head
+                  (Right mempty)
                   vec
-           in head <> body,
+           in fmap (head <>) body,
       binaryDecoder =
         \expectedBaseOid scalarDecoder -> runExceptT do
           (dimensionCount, hasNulls, baseOid) <- lift do
@@ -68,30 +71,42 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
           when (baseOid /= expectedBaseOid) do
             throwError
               DecodingError
-                { location = ["base-oid"],
-                  reason =
-                    UnexpectedValueDecodingErrorReason
-                      (TextBuilder.toText (TextBuilder.decimal expectedBaseOid))
-                      (TextBuilder.toText (TextBuilder.decimal baseOid))
+                { message = "Base OID mismatch",
+                  details = "Expected " <> TextBuilder.toText (TextBuilder.decimal expectedBaseOid) <> ", but got " <> TextBuilder.toText (TextBuilder.decimal baseOid),
+                  row = Nothing,
+                  column = Nothing,
+                  inputLocation = ["base-oid"],
+                  inputOffset = 0,
+                  failingInput = TextBuilder.toText (TextBuilder.decimal baseOid),
+                  expectedInputs = Just [TextBuilder.toText (TextBuilder.decimal expectedBaseOid)]
                 }
 
           -- Interrupt early if the amount of dimensions is wrong.
           when (dimensionCount /= 1) do
             throwError
               DecodingError
-                { location = ["dimension-count"],
-                  reason =
-                    UnexpectedValueDecodingErrorReason
-                      "1"
-                      (TextBuilder.toText (TextBuilder.decimal dimensionCount))
+                { message = "Dimension count mismatch",
+                  details = "Expected 1 dimension, but got " <> TextBuilder.toText (TextBuilder.decimal dimensionCount),
+                  row = Nothing,
+                  column = Nothing,
+                  inputLocation = ["dimension-count"],
+                  inputOffset = 0,
+                  failingInput = TextBuilder.toText (TextBuilder.decimal dimensionCount),
+                  expectedInputs = Just ["1"]
                 }
 
           -- Interrupt early if the array contains nulls and they are not expected.
           when (hasNulls && not elementNullability.nullable) do
             throwError
               DecodingError
-                { location = ["contains-nulls"],
-                  reason = UnexpectedValueDecodingErrorReason "false" "true"
+                { message = "Unexpected nulls in array",
+                  details = "Array contains nulls, but element type is non-nullable",
+                  row = Nothing,
+                  column = Nothing,
+                  inputLocation = ["contains-nulls"],
+                  inputOffset = 0,
+                  failingInput = "",
+                  expectedInputs = Nothing
                 }
 
           (size1, lowerBound1) <- lift do
@@ -102,11 +117,14 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
           when (lowerBound1 /= 1) do
             throwError
               DecodingError
-                { location = ["lower-bound"],
-                  reason =
-                    UnexpectedValueDecodingErrorReason
-                      "1"
-                      (TextBuilder.toText (TextBuilder.decimal lowerBound1))
+                { message = "Unsupported lower bound",
+                  details = "Expected lower bound 1, but got " <> TextBuilder.toText (TextBuilder.decimal lowerBound1),
+                  row = Nothing,
+                  column = Nothing,
+                  inputLocation = ["lower-bound"],
+                  inputOffset = 0,
+                  failingInput = TextBuilder.toText (TextBuilder.decimal lowerBound1),
+                  expectedInputs = Just ["1"]
                 }
 
           construct1 (fromIntegral size1) do
