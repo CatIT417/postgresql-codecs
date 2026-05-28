@@ -15,6 +15,6 @@ artist =
     ""
     "artist"
     ( Artist
-        <$> lmap (.name) (field standard d0 nonNullable)
+        <$> lmap (.name) (field native d0 nonNullable)
         <*> lmap (.genre) (field genre d0 nonNullable)
     )
