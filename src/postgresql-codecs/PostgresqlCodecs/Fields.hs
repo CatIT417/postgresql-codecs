@@ -96,5 +96,6 @@ composite schemaName typeName fields =
                                   (TextBuilder.toText (TextBuilder.decimal count))
                             }
           ExceptT fields.binaryDecoder,
-      textualEncoder = \_value -> error "TODO"
+      textualEncoder = \_value -> error "TODO",
+      textualDecoder = error "TODO"
     }

@@ -2,6 +2,7 @@
 
 module PostgresqlCodecs.Scalar where
 
+import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
@@ -31,7 +32,9 @@ data Scalar a = Scalar
     binaryEncoder :: a -> Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError a),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> TextBuilder.TextBuilder
+    textualEncoder :: a -> TextBuilder.TextBuilder,
+    -- | Decode from Postgres textual format.
+    textualDecoder :: Atto.Parser a
   }
 
 instance Invariant Scalar where
@@ -40,6 +43,7 @@ instance Invariant Scalar where
       { binaryEncoder = binaryEncoder . g,
         binaryDecoder = fmap (fmap f) binaryDecoder,
         textualEncoder = textualEncoder . g,
+        textualDecoder = fmap f textualDecoder,
         ..
       }
 
@@ -64,7 +68,8 @@ standard =
           arrayOid = untag (Standard.arrayOid @a),
           binaryEncoder = Standard.binaryEncoder,
           binaryDecoder = fmap (first convertError) (Standard.binaryDecoder @a),
-          textualEncoder = Standard.textualEncoder
+          textualEncoder = Standard.textualEncoder,
+          textualDecoder = Standard.textualDecoder
         }
 
 enum :: (Ord a) => Text -> Text -> [(Text, a)] -> Scalar a
@@ -114,6 +119,20 @@ enum schema tName variants =
         case lookup val (map (\(l, v) -> (v, l)) variants) of
           Just label -> TextBuilder.text label
           Nothing -> error ("Invalid enum value for type: " <> show tName)
+
+      textDecoder = do
+        label <- Atto.takeText
+        case lookup label variants of
+          Just val -> pure val
+          Nothing ->
+            fail
+              ( Text.unpack
+                  ( "Unexpected enum value: "
+                      <> label
+                      <> ". Expected one of: "
+                      <> Text.intercalate ", " (map fst variants)
+                  )
+              )
    in Scalar
         { schemaName = schema,
           typeName = tName,
@@ -121,5 +140,6 @@ enum schema tName variants =
           arrayOid = Nothing,
           binaryEncoder = encoder,
           binaryDecoder = decoder,
-          textualEncoder = textEncoder
+          textualEncoder = textEncoder,
+          textualDecoder = textDecoder
         }

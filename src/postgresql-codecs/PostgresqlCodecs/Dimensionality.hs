@@ -1,5 +1,6 @@
 module PostgresqlCodecs.Dimensionality where
 
+import qualified Data.Attoparsec.Text as Atto
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimension
 import qualified PostgresqlCodecs.Dimensionality.Writes as Writes
@@ -20,7 +21,10 @@ data Dimensionality scalar vec = Dimensionality
       PtrPeeker.Variable (Either DecodingError vec),
     textualEncoder ::
       (scalar -> TextBuilder.TextBuilder) ->
-      (vec -> TextBuilder.TextBuilder)
+      (vec -> TextBuilder.TextBuilder),
+    textualDecoder ::
+      Atto.Parser scalar ->
+      Atto.Parser vec
   }
 
 d0 :: Dimensionality a a
@@ -28,7 +32,8 @@ d0 =
   Dimensionality
     { binaryEncoder = const id,
       binaryDecoder = const id,
-      textualEncoder = id
+      textualEncoder = id,
+      textualDecoder = id
     }
 
 d1 :: Nullability a b -> Dimension b c -> Dimensionality a c
@@ -108,6 +113,8 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
             ExceptT do
               elementNullability.binaryDecoderWrapper scalarDecoder,
       textualEncoder = \_scalarEncoder _vec ->
+        error "TODO",
+      textualDecoder = \_scalarDecoder ->
         error "TODO"
     }
 

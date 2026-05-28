@@ -51,6 +51,10 @@ column scalar dimensionality nullability =
                   )
               ),
           textDecoder =
-            decodeColumnInText do
-              fail "Text column decoding is not implemented for this scalar codec"
+            decodeColumnInText
+              ( nullability.textualDecoderWrapper
+                  ( dimensionality.textualDecoder
+                      scalar.textualDecoder
+                  )
+              )
         }

@@ -1,5 +1,6 @@
 module PostgresqlCodecs.Nullability where
 
+import qualified Data.Attoparsec.Text as Atto
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Prelude
 import qualified PtrPeeker
@@ -16,7 +17,10 @@ data Nullability a b = Nullability
       (b -> Write.Write),
     textualEncoderWrapper ::
       (a -> TextBuilder.TextBuilder) ->
-      (b -> TextBuilder.TextBuilder)
+      (b -> TextBuilder.TextBuilder),
+    textualDecoderWrapper ::
+      Atto.Parser a ->
+      Atto.Parser b
   }
 
 nullable :: Nullability a (Maybe a)
@@ -38,7 +42,12 @@ nullable =
         Nothing -> Write.bInt32 (-1),
       textualEncoderWrapper = \contentEncoder -> \case
         Just a -> contentEncoder a
-        Nothing -> "NULL"
+        Nothing -> "NULL",
+      textualDecoderWrapper = \contentDecoder -> do
+        Atto.choice
+          [ Atto.string "NULL" $> Nothing,
+            Just <$> contentDecoder
+          ]
     }
 
 nonNullable :: Nullability a a
@@ -62,5 +71,6 @@ nonNullable =
         let content = contentEncoder a
             contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
          in contentSize <> content,
-      textualEncoderWrapper = id
+      textualEncoderWrapper = id,
+      textualDecoderWrapper = id
     }
