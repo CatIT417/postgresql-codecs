@@ -6,7 +6,7 @@ import PostgresqlCodecs.Prelude
 data Nullability a b = Nullability
   { nullable :: Bool,
     onNull :: Either DecodingError b,
-    onNonNull :: a -> Either DecodingError b,
+    onNonNull :: a -> b,
     encoder ::
       forall c.
       -- Pack null.
@@ -21,17 +21,13 @@ nullable =
   Nullability
     True
     (Right Nothing)
-    (\x -> Right (Just x))
-    ( \nullVal pack ->
-        \case
-          Just x -> pack x
-          Nothing -> nullVal
-    )
+    Just
+    maybe
 
 nonNullable :: Nullability a a
 nonNullable =
   Nullability
     False
     (Left "Unexpected null")
-    Right
-    (\_nullVal pack -> pack)
+    id
+    (const id)

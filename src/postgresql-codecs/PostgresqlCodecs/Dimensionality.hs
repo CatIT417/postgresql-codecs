@@ -141,7 +141,7 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
                   case contentSize of
                     -1 -> pure elementNullability.onNull
                     _ ->
-                      fmap (>>= elementNullability.onNonNull) scalarDecoder,
+                      fmap (fmap elementNullability.onNonNull) scalarDecoder,
           textualEncoder = \_scalarEncoder _vec ->
             error "TODO",
           textualDecoder = \_scalarDecoder ->
