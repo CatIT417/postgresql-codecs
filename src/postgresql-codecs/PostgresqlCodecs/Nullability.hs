@@ -10,6 +10,8 @@ import qualified TextBuilder
 
 data Nullability a b = Nullability
   { nullable :: Bool,
+    -- Wire format wrappers (inside composites/arrays).
+    -- The PostgreSQL wire format represents NULL with a length prefix of @int32(-1)@.
     binaryDecoderWrapper ::
       PtrPeeker.Variable (Either DecodingError a) ->
       PtrPeeker.Variable (Either DecodingError b),
@@ -21,7 +23,23 @@ data Nullability a b = Nullability
       Atto.Parser b,
     textualEncoderWrapper ::
       (a -> Either EncodingError TextBuilder.TextBuilder) ->
-      (b -> Either EncodingError TextBuilder.TextBuilder)
+      (b -> Either EncodingError TextBuilder.TextBuilder),
+    -- Surface format wrappers (top-level params/columns).
+    -- These match driver APIs like libpq that use 'Maybe ByteString' / 'Maybe Text'.
+    binarySurfaceDecoder ::
+      (ByteString -> Either DecodingError a) ->
+      Maybe ByteString ->
+      Either DecodingError b,
+    binarySurfaceEncoder ::
+      (a -> Either EncodingError Write.Write) ->
+      (b -> Either EncodingError (Maybe Write.Write)),
+    textualSurfaceDecoder ::
+      (Text -> Either DecodingError a) ->
+      Maybe Text ->
+      Either DecodingError b,
+    textualSurfaceEncoder ::
+      (a -> Either EncodingError TextBuilder.TextBuilder) ->
+      (b -> Either EncodingError (Maybe TextBuilder.TextBuilder))
   }
 
 nullable :: Nullability a (Maybe a)
@@ -48,7 +66,20 @@ nullable =
         Atto.choice
           [ Atto.string "NULL" $> Nothing,
             Just <$> contentDecoder
-          ]
+          ],
+      -- Surface
+      binarySurfaceDecoder = \run -> \case
+        Nothing -> Right Nothing
+        Just bs -> fmap Just (run bs),
+      binarySurfaceEncoder = \contentEncoder -> \case
+        Just a -> fmap Just (contentEncoder a)
+        Nothing -> Right Nothing,
+      textualSurfaceDecoder = \run -> \case
+        Nothing -> Right Nothing
+        Just text -> fmap Just (run text),
+      textualSurfaceEncoder = \contentEncoder -> \case
+        Just a -> fmap Just (contentEncoder a)
+        Nothing -> Right Nothing
     }
 
 nonNullable :: Nullability a a
@@ -79,5 +110,36 @@ nonNullable =
         let contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
         Right (contentSize <> content),
       textualEncoderWrapper = id,
-      textualDecoderWrapper = id
+      textualDecoderWrapper = id,
+      -- Surface
+      binarySurfaceDecoder = \run -> \case
+        Nothing ->
+          Left
+            DecodingError
+              { message = "Unexpected NULL value",
+                details = "Expected non-nullable value, but got NULL",
+                row = Nothing,
+                column = Nothing,
+                inputLocation = ["surface-nullability"],
+                inputOffset = 0,
+                failingInput = "",
+                expectedInputs = Nothing
+              }
+        Just bs -> run bs,
+      binarySurfaceEncoder = \contentEncoder a -> fmap Just (contentEncoder a),
+      textualSurfaceDecoder = \run -> \case
+        Nothing ->
+          Left
+            DecodingError
+              { message = "Unexpected NULL value",
+                details = "Expected non-nullable value, but got NULL",
+                row = Nothing,
+                column = Nothing,
+                inputLocation = ["surface-nullability"],
+                inputOffset = 0,
+                failingInput = "",
+                expectedInputs = Nothing
+              }
+        Just text -> run text,
+      textualSurfaceEncoder = \contentEncoder a -> fmap Just (contentEncoder a)
     }

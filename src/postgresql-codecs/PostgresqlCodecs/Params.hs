@@ -16,10 +16,12 @@ data Params a = Params
     count :: Int32,
     -- | OID of each parameter. A value of 0 means the server should infer the type.
     oids :: [Word32],
-    -- | Binary encoder producing one 'Write.Write' per parameter.
-    binaryEncoder :: a -> Either EncodingError [Write.Write],
-    -- | Textual encoder producing one 'TextBuilder' per parameter.
-    textualEncoder :: a -> Either EncodingError [TextBuilder.TextBuilder]
+    -- | Binary encoder producing one 'Maybe Write.Write' per parameter.
+    -- 'Nothing' represents a NULL parameter.
+    binaryEncoder :: a -> Either EncodingError [Maybe Write.Write],
+    -- | Textual encoder producing one 'Maybe TextBuilder' per parameter.
+    -- 'Nothing' represents a NULL parameter.
+    textualEncoder :: a -> Either EncodingError [Maybe TextBuilder.TextBuilder]
   }
 
 instance Contravariant Params where
@@ -53,10 +55,10 @@ param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid
       binEnc =
-        nullability.binaryEncoderWrapper
+        nullability.binarySurfaceEncoder
           (dimensionality.binaryEncoder baseOid scalar.binaryEncoder)
       txtEnc =
-        nullability.textualEncoderWrapper
+        nullability.textualSurfaceEncoder
           (dimensionality.textualEncoder scalar.textualEncoder)
    in Params
         { count = 1,
