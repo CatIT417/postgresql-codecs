@@ -74,3 +74,16 @@ spec = beforeAllWith setupTypes $ do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           val
       result `shouldBe` Right val
+
+    it "nested composite decode" $ \conn -> do
+      result <-
+        query
+          conn
+          "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+      result
+        `shouldBe` Right
+          CompositeContainer
+            { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
+              containerLabel = "hello, world"
+            }
