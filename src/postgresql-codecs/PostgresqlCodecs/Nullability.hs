@@ -7,7 +7,13 @@ data Nullability a b = Nullability
   { nullable :: Bool,
     onNull :: Either DecodingError b,
     onNonNull :: a -> Either DecodingError b,
-    encoder :: forall c. (a -> c) -> (b -> Maybe c)
+    encoder ::
+      forall c.
+      -- Pack null.
+      c ->
+      -- Pack non-null.
+      (a -> c) ->
+      (b -> c)
   }
 
 nullable :: Nullability a (Maybe a)
@@ -16,10 +22,10 @@ nullable =
     True
     (Right Nothing)
     (\x -> Right (Just x))
-    ( \pack ->
+    ( \nullVal pack ->
         \case
-          Just x -> Just (pack x)
-          Nothing -> Nothing
+          Just x -> pack x
+          Nothing -> nullVal
     )
 
 nonNullable :: Nullability a a
@@ -28,6 +34,4 @@ nonNullable =
     False
     (Left "Unexpected null")
     Right
-    ( \pack ->
-        \x -> Just (pack x)
-    )
+    (\_nullVal pack -> pack)

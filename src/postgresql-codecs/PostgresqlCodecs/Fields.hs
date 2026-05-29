@@ -69,14 +69,16 @@ field scalar dimensionality nullability =
       Nullability {encoder = enc} = nullability
    in Fields
         { count = 1,
-          binaryEncoder = \value -> do
-            mWrite <- sequenceA (enc binEnc value)
+          binaryEncoder = \value ->
             let oid = Write.bInt32 (fromIntegral baseOid)
-            case mWrite of
-              Nothing -> Right (oid <> Write.bInt32 (-1))
-              Just write ->
-                let size = Write.bInt32 (fromIntegral (Write.writeSize write))
-                 in Right (oid <> size <> write),
+             in enc
+                  (Right (oid <> Write.bInt32 (-1)))
+                  ( \a -> do
+                      write <- binEnc a
+                      let size = Write.bInt32 (fromIntegral (Write.writeSize write))
+                      Right (oid <> size <> write)
+                  )
+                  value,
           binaryDecoder = do
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             case contentSize of
@@ -85,11 +87,11 @@ field scalar dimensionality nullability =
                 fmap
                   (>>= nullability.onNonNull)
                   (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
-          textualEncoder = \value -> do
-            mText <- sequenceA (enc txtEnc value)
-            case mText of
-              Nothing -> Right [mempty]
-              Just text -> Right [text],
+          textualEncoder = \value ->
+            enc
+              (Right [mempty])
+              (\a -> do text <- txtEnc a; Right [text])
+              value,
           textualDecoder =
             error "TODO: Implement decoding of a composite field. Take care about nesting"
         }

@@ -60,6 +60,6 @@ param scalar dimensionality nullability =
    in Params
         { count = 1,
           oids = [baseOid],
-          binaryEncoder = \c -> fmap (: []) (sequenceA (enc binEnc c)),
-          textualEncoder = \c -> fmap (: []) (sequenceA (enc txtEnc c))
+          binaryEncoder = \c -> fmap (: []) (enc (Right Nothing) (\a -> fmap Just (binEnc a)) c),
+          textualEncoder = \c -> fmap (: []) (enc (Right Nothing) (\a -> fmap Just (txtEnc a)) c)
         }
