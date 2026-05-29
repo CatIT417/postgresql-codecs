@@ -42,13 +42,13 @@ instance Applicative (Fields a) where
   (<*>) left right =
     Fields
       { count = left.count + right.count,
-        binaryEncoder = \value -> left.binaryEncoder value <> right.binaryEncoder value,
+        binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
         binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
         textualEncoder = \value -> do
           leftTexts <- left.textualEncoder value
           rightTexts <- right.textualEncoder value
           Right (leftTexts <> rightTexts),
-        textualDecoder = error "TODO: Merge with care taken about multiple fields"
+        textualDecoder = left.textualDecoder <*> right.textualDecoder
       }
 
 instance Profunctor Fields where
@@ -81,7 +81,7 @@ field scalar dimensionality nullability =
               . nullability.textualEncoderWrapper
                 (dimensionality.textualEncoder scalar.textualEncoder),
           textualDecoder =
-            error "TODO: Implement decoding of a composite field. Take care about nesting"
+            fail "Textual composite field decoding is not implemented"
         }
 
 composite :: Text -> Text -> Fields a a -> Scalar a
@@ -117,5 +117,5 @@ composite schemaName typeName fields =
                             }
           ExceptT fields.binaryDecoder,
       textualEncoder = \_value -> error "TODO",
-      textualDecoder = error "TODO"
+      textualDecoder = fail "Textual decoding of composite types is not implemented"
     }

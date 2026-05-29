@@ -1,18 +1,21 @@
 module IntegrationTest.Spec (spec) where
 
-import Prelude hiding (Int8)
+import Prelude hiding (Bool, Int8)
 import Control.Monad.IO.Class (liftIO)
 import Data.Functor.Contravariant (contramap)
-import Data.Int (Int32, Int64)
 import Data.Profunctor (lmap)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
 import PostgresqlCodecs
+import PostgresqlTypes.Bool (Bool (Bool))
+import PostgresqlTypes.Float8 (Float8 (Float8))
+import PostgresqlTypes.Int4 (Int4 (Int4))
+import PostgresqlTypes.Int8 (Int8 (Int8))
 import Test.Tasty
 import Test.Tasty.HUnit
+import Test.Tasty.Runners (NumThreads (..))
 import TestContainers.Monad (TestContainer)
 import TestcontainersPostgresql (Config (..), Auth (..), setup)
 import TestContainers.Tasty (withContainers)
@@ -22,7 +25,7 @@ import IntegrationTest.Adapter (execQuery)
 -- Custom scalar types for testing
 
 data Genre = Comedy | Action | Drama
-  deriving (Eq, Show)
+  deriving (Eq, Ord, Show)
 
 genreScalar :: Scalar Genre
 genreScalar =
@@ -31,7 +34,7 @@ genreScalar =
     "genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
-data CompositePoint = CompositePoint {ptX :: Int32, ptY :: Int32}
+data CompositePoint = CompositePoint {ptX :: Int4, ptY :: Int4}
   deriving (Eq, Show)
 
 compositePointScalar :: Scalar CompositePoint
@@ -73,6 +76,7 @@ setupContainer = do
 
 spec :: TestTree
 spec =
+  localOption (NumThreads 1) $
   withContainers setupContainer $ \getConn ->
     testGroup
       "Integration"
@@ -92,12 +96,12 @@ spec =
           conn <- getConn
           result <-
             execQuery conn "SELECT 42::int4" mempty (oneRow (column native d0 nonNullable)) ()
-          result @?= Right (42 :: Int32),
+          result @?= Right (Int4 42),
         testCase "someRow with result" $ do
           conn <- getConn
           result <-
             execQuery conn "SELECT 42::int4" mempty (someRow (column native d0 nonNullable)) ()
-          result @?= Right (Just (42 :: Int32)),
+          result @?= Right (Just (Int4 42)),
         testCase "someRow without result" $ do
           conn <- getConn
           result <-
@@ -107,7 +111,7 @@ spec =
               mempty
               (someRow (column native d0 nonNullable))
               ()
-          result @?= Right (Nothing :: Maybe Int32),
+          result @?= Right (Nothing :: Maybe Int4),
         testCase "manyRows" $ do
           conn <- getConn
           result <-
@@ -117,7 +121,7 @@ spec =
               mempty
               (manyRows (column native d0 nonNullable))
               ()
-          result @?= Right (Vector.fromList [1, 2, 3] :: Vector.Vector Int32),
+          result @?= Right (Vector.fromList [Int4 1, Int4 2, Int4 3]),
         -- Scalar parameter roundtrips
         testCase "param int4 roundtrip" $ do
           conn <- getConn
@@ -127,8 +131,8 @@ spec =
               "SELECT $1::int4"
               (param native d0 nonNullable)
               (oneRow (column native d0 nonNullable))
-              (42 :: Int32)
-          result @?= Right (42 :: Int32),
+              (Int4 42)
+          result @?= Right (Int4 42),
         testCase "param int8 roundtrip" $ do
           conn <- getConn
           result <-
@@ -137,8 +141,8 @@ spec =
               "SELECT $1::int8"
               (param native d0 nonNullable)
               (oneRow (column native d0 nonNullable))
-              (9876543210 :: Int64)
-          result @?= Right (9876543210 :: Int64),
+              (Int8 9876543210)
+          result @?= Right (Int8 9876543210),
         testCase "param text roundtrip" $ do
           conn <- getConn
           result <-
@@ -157,8 +161,8 @@ spec =
               "SELECT $1::bool"
               (param native d0 nonNullable)
               (oneRow (column native d0 nonNullable))
-              True
-          result @?= Right True,
+              (Bool True)
+          result @?= Right (Bool True),
         testCase "param float8 roundtrip" $ do
           conn <- getConn
           result <-
@@ -167,8 +171,8 @@ spec =
               "SELECT $1::float8"
               (param native d0 nonNullable)
               (oneRow (column native d0 nonNullable))
-              (3.14 :: Double)
-          result @?= Right (3.14 :: Double),
+              (Float8 3.14)
+          result @?= Right (Float8 3.14),
         -- Multiple params / multiple columns
         testCase "multiple params and columns" $ do
           conn <- getConn
@@ -185,19 +189,19 @@ spec =
               "SELECT $1::int4, $2::int4"
               ps
               (oneRow cols)
-              (10 :: Int32, 20 :: Int32)
-          result @?= Right (10 :: Int32, 20 :: Int32),
+              (Int4 10, Int4 20)
+          result @?= Right (Int4 10, Int4 20),
         -- Nullable columns
         testCase "nullable column non-null" $ do
           conn <- getConn
           result <-
             execQuery conn "SELECT 42::int4" mempty (oneRow (column native d0 nullable)) ()
-          result @?= Right (Just (42 :: Int32)),
+          result @?= Right (Just (Int4 42)),
         testCase "nullable column null" $ do
           conn <- getConn
           result <-
             execQuery conn "SELECT NULL::int4" mempty (oneRow (column native d0 nullable)) ()
-          result @?= Right (Nothing :: Maybe Int32),
+          result @?= Right (Nothing :: Maybe Int4),
         -- Nullable params
         testCase "nullable param Nothing" $ do
           conn <- getConn
@@ -207,8 +211,8 @@ spec =
               "SELECT $1::int4"
               (param native d0 nullable)
               (oneRow (column native d0 nullable))
-              (Nothing :: Maybe Int32)
-          result @?= Right (Nothing :: Maybe Int32),
+              (Nothing :: Maybe Int4)
+          result @?= Right (Nothing :: Maybe Int4),
         testCase "nullable param Just" $ do
           conn <- getConn
           result <-
@@ -217,12 +221,12 @@ spec =
               "SELECT $1::int4"
               (param native d0 nullable)
               (oneRow (column native d0 nullable))
-              (Just (42 :: Int32))
-          result @?= Right (Just (42 :: Int32)),
+              (Just (Int4 42))
+          result @?= Right (Just (Int4 42)),
         -- Arrays
         testCase "array d1 nonNullable roundtrip" $ do
           conn <- getConn
-          let input = Vector.fromList [1, 2, 3] :: Vector.Vector Int32
+          let input = Vector.fromList [Int4 1, Int4 2, Int4 3]
           result <-
             execQuery
               conn
@@ -233,7 +237,7 @@ spec =
           result @?= Right input,
         testCase "array d1 nullable elements" $ do
           conn <- getConn
-          let input = Vector.fromList [Just 1, Nothing, Just 3] :: Vector.Vector (Maybe Int32)
+          let input = Vector.fromList [Just (Int4 1), Nothing, Just (Int4 3)]
           result <-
             execQuery
               conn
@@ -256,7 +260,7 @@ spec =
         -- Composite type
         testCase "composite roundtrip" $ do
           conn <- getConn
-          let pt = CompositePoint {ptX = 42, ptY = 7}
+          let pt = CompositePoint {ptX = Int4 42, ptY = Int4 7}
           result <-
             execQuery
               conn
