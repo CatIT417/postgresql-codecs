@@ -8,7 +8,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
-import PostgresqlCodecs
+import qualified PostgresqlCodecs
+import qualified PostgresqlTypes
 import PostgresqlTypes.Bool (Bool (Bool))
 import PostgresqlTypes.Float8 (Float8 (Float8))
 import PostgresqlTypes.Int4 (Int4 (Int4))
@@ -27,24 +28,24 @@ import Prelude hiding (Bool)
 data Genre = Comedy | Action | Drama
   deriving (Eq, Ord, Show)
 
-genreScalar :: Scalar Genre
+genreScalar :: PostgresqlCodecs.Scalar Genre
 genreScalar =
-  enum
+  PostgresqlCodecs.enum
     "public"
     "genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
-data CompositePoint = CompositePoint {ptX :: Int4, ptY :: Int4}
+data CompositePoint = CompositePoint {ptX :: PostgresqlTypes.Int4, ptY :: PostgresqlTypes.Int4}
   deriving (Eq, Show)
 
-compositePointScalar :: Scalar CompositePoint
+compositePointScalar :: PostgresqlCodecs.Scalar CompositePoint
 compositePointScalar =
-  composite
+  PostgresqlCodecs.composite
     "public"
     "composite_point"
     ( CompositePoint
-        <$> lmap (.ptX) (field native d0 nonNullable)
-        <*> lmap (.ptY) (field native d0 nonNullable)
+        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 -- ---------------------------------------------------------------------------
@@ -91,18 +92,18 @@ spec =
                 conn
                 "INSERT INTO t_affected SELECT generate_series(1, 5)"
                 mempty
-                rowsAffected
+                PostgresqlCodecs.rowsAffected
                 ()
             result @?= Right 5,
           testCase "oneRow int4" $ do
             conn <- getConn
             result <-
-              execQuery conn "SELECT 42::int4" mempty (oneRow (column native d0 nonNullable)) ()
+              execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
             result @?= Right (Int4 42),
           testCase "someRow with result" $ do
             conn <- getConn
             result <-
-              execQuery conn "SELECT 42::int4" mempty (someRow (column native d0 nonNullable)) ()
+              execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
             result @?= Right (Just (Int4 42)),
           testCase "someRow without result" $ do
             conn <- getConn
@@ -111,9 +112,9 @@ spec =
                 conn
                 "SELECT 42::int4 WHERE false"
                 mempty
-                (someRow (column native d0 nonNullable))
+                (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 ()
-            result @?= Right (Nothing :: Maybe Int4),
+            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
           testCase "manyRows" $ do
             conn <- getConn
             result <-
@@ -121,7 +122,7 @@ spec =
                 conn
                 "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
                 mempty
-                (manyRows (column native d0 nonNullable))
+                (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 ()
             result @?= Right (Vector.fromList [Int4 1, Int4 2, Int4 3]),
           -- Scalar parameter roundtrips
@@ -131,8 +132,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::int4"
-                (param native d0 nonNullable)
-                (oneRow (column native d0 nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 (Int4 42)
             result @?= Right (Int4 42),
           testCase "param int8 roundtrip" $ do
@@ -141,8 +142,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::int8"
-                (param native d0 nonNullable)
-                (oneRow (column native d0 nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 (Int8 9876543210)
             result @?= Right (Int8 9876543210),
           testCase "param text roundtrip" $ do
@@ -151,18 +152,18 @@ spec =
               execQuery
                 conn
                 "SELECT $1::text"
-                (param native d0 nonNullable)
-                (oneRow (column native d0 nonNullable))
-                ("hello" :: Text)
-            result @?= Right ("hello" :: Text),
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+                ("hello" :: PostgresqlTypes.Text)
+            result @?= Right ("hello" :: PostgresqlTypes.Text),
           testCase "param bool roundtrip" $ do
             conn <- getConn
             result <-
               execQuery
                 conn
                 "SELECT $1::bool"
-                (param native d0 nonNullable)
-                (oneRow (column native d0 nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 (Bool True)
             result @?= Right (Bool True),
           testCase "param float8 roundtrip" $ do
@@ -171,39 +172,39 @@ spec =
               execQuery
                 conn
                 "SELECT $1::float8"
-                (param native d0 nonNullable)
-                (oneRow (column native d0 nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 (Float8 3.14)
             result @?= Right (Float8 3.14),
           -- Multiple params / multiple columns
           testCase "multiple params and columns" $ do
             conn <- getConn
             let ps =
-                  contramap fst (param native d0 nonNullable)
-                    <> contramap snd (param native d0 nonNullable)
+                  contramap fst (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                    <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
                 cols =
                   (,)
-                    <$> column native d0 nonNullable
-                    <*> column native d0 nonNullable
+                    <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+                    <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
             result <-
               execQuery
                 conn
                 "SELECT $1::int4, $2::int4"
                 ps
-                (oneRow cols)
+                (PostgresqlCodecs.oneRow cols)
                 (Int4 10, Int4 20)
             result @?= Right (Int4 10, Int4 20),
           -- Nullable columns
           testCase "nullable column non-null" $ do
             conn <- getConn
             result <-
-              execQuery conn "SELECT 42::int4" mempty (oneRow (column native d0 nullable)) ()
+              execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
             result @?= Right (Just (Int4 42)),
           testCase "nullable column null" $ do
             conn <- getConn
             result <-
-              execQuery conn "SELECT NULL::int4" mempty (oneRow (column native d0 nullable)) ()
-            result @?= Right (Nothing :: Maybe Int4),
+              execQuery conn "SELECT NULL::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
+            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
           -- Nullable params
           testCase "nullable param Nothing" $ do
             conn <- getConn
@@ -211,18 +212,18 @@ spec =
               execQuery
                 conn
                 "SELECT $1::int4"
-                (param native d0 nullable)
-                (oneRow (column native d0 nullable))
-                (Nothing :: Maybe Int4)
-            result @?= Right (Nothing :: Maybe Int4),
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+                (Nothing :: Maybe PostgresqlTypes.Int4)
+            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
           testCase "nullable param Just" $ do
             conn <- getConn
             result <-
               execQuery
                 conn
                 "SELECT $1::int4"
-                (param native d0 nullable)
-                (oneRow (column native d0 nullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
                 (Just (Int4 42))
             result @?= Right (Just (Int4 42)),
           -- Arrays
@@ -233,8 +234,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::int4[]"
-                (param native (d1 nonNullable vector) nonNullable)
-                (oneRow (column native (d1 nonNullable vector) nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
                 input
             result @?= Right input,
           testCase "array d1 nullable elements" $ do
@@ -244,8 +245,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::int4[]"
-                (param native (d1 nullable vector) nonNullable)
-                (oneRow (column native (d1 nullable vector) nonNullable))
+                (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
                 input
             result @?= Right input,
           -- Enum type
@@ -255,8 +256,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::genre"
-                (param genreScalar d0 nonNullable)
-                (oneRow (column genreScalar d0 nonNullable))
+                (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 Comedy
             result @?= Right Comedy,
           -- Composite type
@@ -267,8 +268,8 @@ spec =
               execQuery
                 conn
                 "SELECT $1::composite_point"
-                (param compositePointScalar d0 nonNullable)
-                (oneRow (column compositePointScalar d0 nonNullable))
+                (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
                 pt
             result @?= Right pt
         ]
