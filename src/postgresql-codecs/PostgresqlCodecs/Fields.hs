@@ -1,6 +1,7 @@
 module PostgresqlCodecs.Fields where
 
 import qualified Data.Attoparsec.Text as Atto
+import qualified Data.Text as Text
 import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.EncodingError
@@ -40,6 +41,11 @@ instance Applicative (Fields a) where
         textualDecoder = pure x
       }
   (<*>) left right =
+    let textualDecoder =
+          if left.count == 0 || right.count == 0
+            then left.textualDecoder <*> right.textualDecoder
+            else left.textualDecoder <*> (Atto.char ',' *> right.textualDecoder)
+     in
     Fields
       { count = left.count + right.count,
         binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
@@ -48,7 +54,7 @@ instance Applicative (Fields a) where
           leftTexts <- left.textualEncoder value
           rightTexts <- right.textualEncoder value
           Right (leftTexts <> rightTexts),
-        textualDecoder = left.textualDecoder <*> right.textualDecoder
+        textualDecoder
       }
 
 instance Profunctor Fields where
@@ -93,8 +99,21 @@ field scalar dimensionality nullability =
               (Right [mempty])
               (\a -> do text <- txtEnc a; Right [text])
               value,
-          textualDecoder =
-            error "TODO: Implement decoding of a composite field. Take care about nesting"
+          textualDecoder = do
+            rawField <- compositeFieldRawText
+            case rawField of
+              Nothing ->
+                case nullability.onNull of
+                  Left decodingError -> fail (Text.unpack decodingError.message)
+                  Right value -> pure value
+              Just fieldText -> do
+                normalizedFieldText <-
+                  case decodeQuotedCompositeFieldText fieldText of
+                    Left message -> fail message
+                    Right text -> pure text
+                case Atto.parseOnly (dimensionality.textualDecoder scalar.textualDecoder <* Atto.endOfInput) normalizedFieldText of
+                  Left message -> fail message
+                  Right value -> pure (nullability.onNonNull value)
         }
 
 composite :: Text -> Text -> Fields a a -> Scalar a
@@ -131,5 +150,58 @@ composite schemaName typeName fields =
                             }
           ExceptT fields.binaryDecoder,
       textualEncoder = \_value -> error "TODO",
-      textualDecoder = error "TODO"
+      textualDecoder = Atto.char '(' *> fields.textualDecoder <* Atto.char ')'
     }
+
+compositeFieldRawText :: Atto.Parser (Maybe Text)
+compositeFieldRawText = do
+  raw <- go 0 False False []
+  pure (if Text.null raw then Nothing else Just raw)
+  where
+    go depth insideQuotes escaped accumulator = do
+      nextChar <- Atto.peekChar
+      case nextChar of
+        Nothing -> fail "Unexpected end of input while decoding composite field"
+        Just char
+          | not insideQuotes && not escaped && depth == 0 && (char == ',' || char == ')') ->
+              pure (Text.pack (reverse accumulator))
+          | otherwise -> do
+              _ <- Atto.anyChar
+              if
+                  | escaped ->
+                      go depth insideQuotes False (char : accumulator)
+                  | char == '\\' ->
+                      go depth insideQuotes True (char : accumulator)
+                  | char == '"' ->
+                      go depth (not insideQuotes) False (char : accumulator)
+                  | not insideQuotes && char == '(' ->
+                      go (depth + 1) insideQuotes False (char : accumulator)
+                  | not insideQuotes && char == ')' && depth > 0 ->
+                      go (depth - 1) insideQuotes False (char : accumulator)
+                  | otherwise ->
+                      go depth insideQuotes False (char : accumulator)
+
+decodeQuotedCompositeFieldText :: Text -> Either String Text
+decodeQuotedCompositeFieldText text
+  | Text.length text >= 2 && Text.head text == '"' && Text.last text == '"' =
+      unescapeQuotedCompositeFieldText (Text.init (Text.tail text))
+  | otherwise =
+      Right text
+
+unescapeQuotedCompositeFieldText :: Text -> Either String Text
+unescapeQuotedCompositeFieldText =
+  go False []
+  where
+    go escaped accumulator input =
+      case Text.uncons input of
+        Nothing ->
+          if escaped
+            then Left "Composite field has trailing escape character"
+            else Right (Text.pack (reverse accumulator))
+        Just (char, rest)
+          | escaped ->
+              go False (char : accumulator) rest
+          | char == '\\' ->
+              go True accumulator rest
+          | otherwise ->
+              go False (char : accumulator) rest

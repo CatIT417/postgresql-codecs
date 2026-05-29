@@ -46,6 +46,19 @@ compositePointScalar =
         <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
+data CompositeContainer = CompositeContainer {containerPoint :: CompositePoint, containerLabel :: PostgresqlTypes.Text}
+  deriving (Eq, Show)
+
+compositeContainerScalar :: PostgresqlCodecs.Scalar CompositeContainer
+compositeContainerScalar =
+  PostgresqlCodecs.composite
+    "public"
+    "composite_container"
+    ( CompositeContainer
+        <$> lmap (.containerPoint) (PostgresqlCodecs.field compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+    )
+
 -- ---------------------------------------------------------------------------
 -- Container setup
 
@@ -69,6 +82,7 @@ setupContainer = do
       _ -> fail "Failed to connect to PostgreSQL"
     _ <- PQ.exec conn "CREATE TYPE genre AS ENUM ('Comedy', 'Action', 'Drama')"
     _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
+    _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
     pure ()
   pure conn
 
@@ -249,3 +263,17 @@ spec =
             (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
             pt
         result `shouldBe` Right pt
+      it "nested composite decode" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
+            mempty
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            ()
+        result
+          `shouldBe` Right
+            CompositeContainer
+              { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
+                containerLabel = "hello, world"
+              }
