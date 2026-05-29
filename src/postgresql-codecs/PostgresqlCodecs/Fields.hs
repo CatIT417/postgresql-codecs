@@ -85,7 +85,7 @@ field scalar dimensionality nullability =
               -1 -> pure nullability.onNull
               _ ->
                 fmap
-                  (>>= nullability.onNonNull)
+                  (fmap nullability.onNonNull)
                   (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
           textualEncoder = \value ->
             enc

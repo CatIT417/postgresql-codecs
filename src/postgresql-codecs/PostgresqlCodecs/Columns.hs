@@ -45,16 +45,13 @@ column scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
       binPeek = dimensionality.binaryDecoder baseOid scalar.binaryDecoder
       txtParser = dimensionality.textualDecoder scalar.textualDecoder
-      runOnNonNull a =
-        case nullability.onNonNull a of
-          Right b -> b
-          Left _ -> error "onNonNull unexpectedly failed"
+      runOnNonNull = nullability.onNonNull
    in Columns
         { count = 1,
           binaryDecoder =
             consumeColumnInBinary
               nullability.onNull
-              (fmap (>>= nullability.onNonNull) binPeek),
+              (fmap (fmap nullability.onNonNull) binPeek),
           textDecoder =
             consumeColumnInText
               nullability.onNull
