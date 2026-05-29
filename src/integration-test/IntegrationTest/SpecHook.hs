@@ -2,6 +2,7 @@ module IntegrationTest.SpecHook where
 
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Pool as Pool
 import qualified Data.Text as Text
 import qualified Database.PostgreSQL.LibPQ as PQ
 import Test.Hspec
@@ -14,26 +15,31 @@ type HookedSpec = SpecWith PQ.Connection
 pgConfig :: TcPg.Config
 pgConfig = TcPg.Config {tagName = "postgres:16", auth = TcPg.TrustAuth, forwardLogs = False}
 
-setupContainer :: TestContainers.TestContainer PQ.Connection
+setupContainer :: TestContainers.TestContainer (Pool.Pool PQ.Connection)
 setupContainer = do
   (host, port) <- TcPg.setup pgConfig
-  let connStr =
-        "host="
-          <> BS8.pack (Text.unpack host)
-          <> " port="
-          <> BS8.pack (show port)
-          <> " user=postgres dbname=postgres"
-  conn <- liftIO (PQ.connectdb connStr)
-  liftIO $ do
-    s <- PQ.status conn
-    case s of
-      PQ.ConnectionOk -> pure ()
-      _ -> fail "Failed to connect to PostgreSQL"
+  pool <- liftIO $ Pool.newPool $ Pool.defaultPoolConfig (connect host port) PQ.finish 30 100
+  liftIO $ Pool.withResource pool $ \conn -> do
     _ <- PQ.exec conn "CREATE TYPE genre AS ENUM ('Comedy', 'Action', 'Drama')"
     _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
     _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
     pure ()
-  pure conn
+  pure pool
+  where
+    connect host port = do
+      let connStr =
+            "host="
+              <> BS8.pack (Text.unpack host)
+              <> " port="
+              <> BS8.pack (show port)
+              <> " user=postgres dbname=postgres"
+      conn <- PQ.connectdb connStr
+      s <- PQ.status conn
+      case s of
+        PQ.ConnectionOk -> pure conn
+        _ -> fail "Failed to connect to PostgreSQL"
 
 hook :: HookedSpec -> Spec
-hook = aroundAll (TestContainers.withContainers setupContainer)
+hook spec =
+  aroundAll (TestContainers.withContainers setupContainer) $
+    aroundWith (\connAction pool -> Pool.withResource pool connAction) spec
