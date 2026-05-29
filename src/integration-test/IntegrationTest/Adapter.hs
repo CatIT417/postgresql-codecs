@@ -13,13 +13,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Database.PostgreSQL.LibPQ as PQ
-import PostgresqlCodecs
-  ( BinaryDecoder (..),
-    Columns (..),
-    DecodingError (..),
-    Params (..),
-    Result (..),
-  )
+import qualified PostgresqlCodecs
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import Prelude
@@ -27,7 +21,7 @@ import Prelude
 -- | A libpq-based row decoder that threads through column index state.
 newtype RowDecoder a
   = RowDecoder
-      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either DecodingError a))
+      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either PostgresqlCodecs.DecodingError a))
 
 instance Functor RowDecoder where
   fmap f (RowDecoder run) = RowDecoder $ \res row colRef ->
@@ -41,7 +35,7 @@ instance Applicative RowDecoder where
       Left e -> pure (Left e)
       Right f -> fmap (fmap f) (rx res row colRef)
 
-instance BinaryDecoder RowDecoder where
+instance PostgresqlCodecs.BinaryDecoder RowDecoder where
   consumeColumnInBinary onNull peeker = RowDecoder $ \res row colRef -> do
     colIdx <- readIORef colRef
     modifyIORef' colRef (+ 1)
@@ -53,7 +47,7 @@ instance BinaryDecoder RowDecoder where
           Left offset ->
             pure $
               Left
-                DecodingError
+                PostgresqlCodecs.DecodingError
                   { message = "Binary decoding failed",
                     details = "Ran out of input at byte offset " <> Text.pack (show offset),
                     row = Nothing,
@@ -66,8 +60,8 @@ instance BinaryDecoder RowDecoder where
           Right result -> pure result
 
 -- | Decode a single row from a libpq result, advancing through columns.
-decodeRow :: Columns row -> PQ.Result -> PQ.Row -> IO (Either Text row)
-decodeRow Columns {binaryDecoder = rd} pgRes pgRow = do
+decodeRow :: PostgresqlCodecs.Columns row -> PQ.Result -> PQ.Row -> IO (Either Text row)
+decodeRow PostgresqlCodecs.Columns {binaryDecoder = rd} pgRes pgRow = do
   colRef <- newIORef 0
   let RowDecoder run = rd
   result <- run pgRes pgRow colRef
@@ -79,8 +73,8 @@ decodeRow Columns {binaryDecoder = rd} pgRes pgRow = do
 execQuery ::
   PQ.Connection ->
   BS.ByteString ->
-  Params params ->
-  Result result ->
+  PostgresqlCodecs.Params params ->
+  PostgresqlCodecs.Result result ->
   params ->
   IO (Either Text result)
 execQuery conn sql ps result input = do
@@ -104,7 +98,7 @@ execQuery conn sql ps result input = do
           handleResult pgResult status result
   where
     handleResult pgResult status theResult = case theResult of
-      RowsAffected toResult ->
+      PostgresqlCodecs.RowsAffected toResult ->
         case status of
           PQ.CommandOk -> do
             mBS <- PQ.cmdTuples pgResult
@@ -118,7 +112,7 @@ execQuery conn sql ps result input = do
             let PQ.Row nCI = nrows
             pure (toResult (fromIntegral nCI))
           _ -> queryError pgResult
-      MaybeRow cols noRow toRow ->
+      PostgresqlCodecs.MaybeRow cols noRow toRow ->
         case status of
           PQ.TuplesOk -> do
             nrows <- PQ.ntuples pgResult
@@ -126,7 +120,7 @@ execQuery conn sql ps result input = do
               then pure (Right noRow)
               else fmap (fmap toRow) (decodeRow cols pgResult (PQ.Row 0))
           _ -> queryError pgResult
-      OneRow cols ->
+      PostgresqlCodecs.OneRow cols ->
         case status of
           PQ.TuplesOk -> do
             nrows <- PQ.ntuples pgResult
@@ -137,7 +131,7 @@ execQuery conn sql ps result input = do
                     "Expected 1 row, got " <> Text.pack (show (let PQ.Row nCI = nrows in fromIntegral nCI :: Int))
               else decodeRow cols pgResult (PQ.Row 0)
           _ -> queryError pgResult
-      ManyRows cols initAcc foldRow fin ->
+      PostgresqlCodecs.ManyRows cols initAcc foldRow fin ->
         case status of
           PQ.TuplesOk -> do
             nrows <- PQ.ntuples pgResult
