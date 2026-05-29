@@ -66,10 +66,14 @@ field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
    in Fields
         { count = 1,
-          binaryEncoder =
-            nullability.binaryEncoderWrapper
-              (dimensionality.binaryEncoder baseOid scalar.binaryEncoder),
-          binaryDecoder =
+          binaryEncoder = \value -> do
+            fieldWrite <-
+              nullability.binaryEncoderWrapper
+                (dimensionality.binaryEncoder baseOid scalar.binaryEncoder)
+                value
+            Right (Write.bWord32 baseOid <> fieldWrite),
+          binaryDecoder = do
+            _ <- PtrPeeker.fixed PtrPeeker.beUnsignedInt4
             nullability.binaryDecoderWrapper
               (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
           textualEncoder =
@@ -89,7 +93,7 @@ composite schemaName typeName fields =
       arrayOid = Nothing,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
-        Right (Write.lInt32 fields.count <> fieldWrites),
+        Right (Write.bInt32 fields.count <> fieldWrites),
       binaryDecoder =
         runExceptT do
           _ <-

@@ -16,6 +16,7 @@ module PostgresqlCodecs
 
     -- ** Result set columns
     Columns (..),
+    BinaryDecoder (..),
     column,
 
     -- * Nullability

@@ -16,6 +16,9 @@ data Nullability a b = Nullability
     binaryEncoderWrapper ::
       (a -> Either EncodingError Write.Write) ->
       (b -> Either EncodingError Write.Write),
+    binaryParamEncoder ::
+      (a -> Either EncodingError Write.Write) ->
+      (b -> Either EncodingError (Maybe Write.Write)),
     textualDecoderWrapper ::
       Atto.Parser a ->
       Atto.Parser b,
@@ -41,6 +44,9 @@ nullable =
           let contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
           Right (contentSize <> content)
         Nothing -> Right (Write.bInt32 (-1)),
+      binaryParamEncoder = \contentEncoder -> \case
+        Nothing -> Right Nothing
+        Just a -> fmap Just (contentEncoder a),
       textualEncoderWrapper = \contentEncoder -> \case
         Just a -> contentEncoder a
         Nothing -> Right "NULL",
@@ -78,6 +84,7 @@ nonNullable =
         content <- contentEncoder a
         let contentSize = Write.bInt32 (fromIntegral (Write.writeSize content))
         Right (contentSize <> content),
+      binaryParamEncoder = \contentEncoder a -> fmap Just (contentEncoder a),
       textualEncoderWrapper = id,
       textualDecoderWrapper = id
     }

@@ -142,3 +142,26 @@ library demo
   build-depends:
     postgresql-codecs,
     rerebase ^>=1.22,
+
+test-suite integration-test
+  import: test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: src/integration-test
+  main-is: Main.hs
+  other-modules:
+    IntegrationTest.Adapter
+    IntegrationTest.Spec
+  build-depends:
+    base >=4.11 && <5,
+    bytestring >=0.10 && <0.13,
+    postgresql-codecs,
+    postgresql-libpq >=0.9 && <0.12,
+    profunctors ^>=5.6 && <6,
+    ptr-peeker ^>=0.1,
+    ptr-poker ^>=0.1.2.16,
+    tasty >=1.4 && <2,
+    tasty-hunit >=0.10 && <0.11,
+    testcontainers >=0.5 && <0.7,
+    testcontainers-postgresql,
+    text >=1.2 && <3,
+    vector ^>=0.13,

@@ -17,11 +17,43 @@ data Params a = Params
     textualEncoder :: [a -> TextBuilder.TextBuilder]
   }
 
-instance Contravariant Params
+instance Contravariant Params where
+  contramap f params =
+    Params
+      { count = params.count,
+        binaryEncoder = map (. f) params.binaryEncoder,
+        textualEncoder = map (. f) params.textualEncoder
+      }
 
-instance Semigroup (Params a)
+instance Semigroup (Params a) where
+  l <> r =
+    Params
+      { count = l.count + r.count,
+        binaryEncoder = l.binaryEncoder <> r.binaryEncoder,
+        textualEncoder = l.textualEncoder <> r.textualEncoder
+      }
 
-instance Monoid (Params a)
+instance Monoid (Params a) where
+  mempty =
+    Params
+      { count = 0,
+        binaryEncoder = [],
+        textualEncoder = []
+      }
 
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
-param scalar dimensionality nullability = error "TODO"
+param scalar dimensionality nullability =
+  let baseOid = fromMaybe 705 scalar.baseOid
+      encode = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
+   in Params
+        { count = 1,
+          binaryEncoder = [nullability.binaryParamEncoder encode],
+          textualEncoder =
+            [ \c ->
+                case nullability.textualEncoderWrapper
+                       (dimensionality.textualEncoder scalar.textualEncoder)
+                       c of
+                  Left _ -> mempty
+                  Right tb -> tb
+            ]
+        }
