@@ -80,6 +80,7 @@ field scalar dimensionality nullability =
                   )
                   value,
           binaryDecoder = do
+            _fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             case contentSize of
               -1 -> pure nullability.onNull
@@ -105,7 +106,7 @@ composite schemaName typeName fields =
       arrayOid = Nothing,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
-        Right (Write.lInt32 fields.count <> fieldWrites),
+        Right (Write.bInt32 fields.count <> fieldWrites),
       binaryDecoder =
         runExceptT do
           _ <-
