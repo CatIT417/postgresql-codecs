@@ -12,16 +12,57 @@ import qualified TextBuilder
 
 -- | Parameterized query parameters encoder.
 data Params a = Params
-  { count :: Int32,
-    binaryEncoder :: [a -> Either EncodingError (Maybe Write.Write)],
-    textualEncoder :: [a -> TextBuilder.TextBuilder]
+  { -- | Number of parameters.
+    count :: Int32,
+    -- | OID of each parameter. A value of 0 means the server should infer the type.
+    oids :: [Word32],
+    -- | Binary encoder producing one 'Maybe Write.Write' per parameter.
+    -- 'Nothing' represents a NULL parameter.
+    binaryEncoder :: a -> Either EncodingError [Maybe Write.Write],
+    -- | Textual encoder producing one 'Maybe TextBuilder' per parameter.
+    -- 'Nothing' represents a NULL parameter.
+    textualEncoder :: a -> Either EncodingError [Maybe TextBuilder.TextBuilder]
   }
 
-instance Contravariant Params
+instance Contravariant Params where
+  contramap f p =
+    Params
+      { count = p.count,
+        oids = p.oids,
+        binaryEncoder = p.binaryEncoder . f,
+        textualEncoder = p.textualEncoder . f
+      }
 
-instance Semigroup (Params a)
+instance Semigroup (Params a) where
+  p1 <> p2 =
+    Params
+      { count = p1.count + p2.count,
+        oids = p1.oids <> p2.oids,
+        binaryEncoder = \a -> liftA2 (<>) (p1.binaryEncoder a) (p2.binaryEncoder a),
+        textualEncoder = \a -> liftA2 (<>) (p1.textualEncoder a) (p2.textualEncoder a)
+      }
 
-instance Monoid (Params a)
+instance Monoid (Params a) where
+  mempty =
+    Params
+      { count = 0,
+        oids = [],
+        binaryEncoder = const (Right []),
+        textualEncoder = const (Right [])
+      }
 
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
-param scalar dimensionality nullability = error "TODO"
+param scalar dimensionality nullability =
+  let baseOid = fromMaybe 0 scalar.baseOid
+      binEnc =
+        nullability.binaryEncoder
+          (dimensionality.binaryEncoder baseOid scalar.binaryEncoder)
+      txtEnc =
+        nullability.textualEncoder
+          (dimensionality.textualEncoder scalar.textualEncoder)
+   in Params
+        { count = 1,
+          oids = [baseOid],
+          binaryEncoder = \c -> fmap (: []) (binEnc c),
+          textualEncoder = \c -> fmap (: []) (txtEnc c)
+        }

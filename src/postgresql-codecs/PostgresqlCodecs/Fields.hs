@@ -64,18 +64,31 @@ instance Profunctor Fields where
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
+      binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
+      txtEnc = dimensionality.textualEncoder scalar.textualEncoder
    in Fields
         { count = 1,
-          binaryEncoder =
-            nullability.binaryEncoderWrapper
-              (dimensionality.binaryEncoder baseOid scalar.binaryEncoder),
-          binaryDecoder =
-            nullability.binaryDecoderWrapper
-              (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
-          textualEncoder =
-            fmap pure
-              . nullability.textualEncoderWrapper
-                (dimensionality.textualEncoder scalar.textualEncoder),
+          binaryEncoder = \value -> do
+            mWrite <- nullability.binaryEncoder binEnc value
+            let oid = Write.bInt32 (fromIntegral baseOid)
+            case mWrite of
+              Nothing -> Right (oid <> Write.bInt32 (-1))
+              Just write ->
+                let size = Write.bInt32 (fromIntegral (Write.writeSize write))
+                 in Right (oid <> size <> write),
+          binaryDecoder = do
+            contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
+            case contentSize of
+              -1 -> pure nullability.onNull
+              _ ->
+                fmap
+                  (>>= nullability.onNonNull)
+                  (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
+          textualEncoder = \value -> do
+            mText <- nullability.textualEncoder txtEnc value
+            case mText of
+              Nothing -> Right [mempty]
+              Just text -> Right [text],
           textualDecoder =
             error "TODO: Implement decoding of a composite field. Take care about nesting"
         }
