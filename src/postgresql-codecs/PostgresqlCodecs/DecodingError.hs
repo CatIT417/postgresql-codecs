@@ -1,6 +1,8 @@
 module PostgresqlCodecs.DecodingError where
 
+import qualified Data.Aeson as Aeson
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (IsReport (..))
 
 data DecodingError = DecodingError
   { -- | Explanation of the error.
@@ -33,3 +35,18 @@ instance IsString DecodingError where
         failingInput = "",
         expectedInputs = Nothing
       }
+
+instance IsReport DecodingError where
+  taggedStaticMessage = Tagged "Decoding failed"
+  taggedStaticSuggestion =
+    Tagged "Check that the data matches the expected PostgreSQL format."
+  toReportDetails DecodingError {..} =
+    [ ("message", Aeson.toJSON message),
+      ("details", Aeson.toJSON details),
+      ("row", Aeson.toJSON row),
+      ("column", Aeson.toJSON column),
+      ("inputLocation", Aeson.toJSON inputLocation),
+      ("inputOffset", Aeson.toJSON inputOffset),
+      ("failingInput", Aeson.toJSON failingInput),
+      ("expectedInputs", Aeson.toJSON expectedInputs)
+    ]

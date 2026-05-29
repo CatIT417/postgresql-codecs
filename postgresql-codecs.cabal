@@ -101,10 +101,12 @@ library
     PostgresqlCodecs.Nullability
     PostgresqlCodecs.Params
     PostgresqlCodecs.Prelude
+    PostgresqlCodecs.Report
     PostgresqlCodecs.Result
     PostgresqlCodecs.Scalar
 
   build-depends:
+    aeson >=2 && <3,
     attoparsec >=0.14 && <0.15,
     base >=4.11 && <5,
     bytestring >=0.10 && <0.13,

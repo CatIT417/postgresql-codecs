@@ -1,6 +1,8 @@
 module PostgresqlCodecs.EncodingError where
 
+import qualified Data.Aeson as Aeson
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (IsReport (..))
 
 data EncodingError = EncodingError
   { -- | Explanation of the error.
@@ -29,3 +31,17 @@ instance IsString EncodingError where
         failingInput = "",
         expectedInputs = Nothing
       }
+
+instance IsReport EncodingError where
+  taggedStaticMessage = Tagged "Encoding failed"
+  taggedStaticSuggestion =
+    Tagged "Check that the value is valid for the target PostgreSQL type."
+  toReportDetails EncodingError {..} =
+    [ ("message", Aeson.toJSON message),
+      ("details", Aeson.toJSON details),
+      ("param", Aeson.toJSON param),
+      ("inputLocation", Aeson.toJSON inputLocation),
+      ("inputOffset", Aeson.toJSON inputOffset),
+      ("failingInput", Aeson.toJSON failingInput),
+      ("expectedInputs", Aeson.toJSON expectedInputs)
+    ]
