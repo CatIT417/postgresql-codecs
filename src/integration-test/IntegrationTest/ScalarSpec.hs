@@ -17,8 +17,8 @@ import qualified PostgresqlTypes.Uuid
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Scalar" $ do
     describe "native roundtrips" $ do
       it "int2" $ \conn -> do

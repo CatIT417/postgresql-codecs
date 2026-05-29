@@ -36,8 +36,8 @@ setupTypes conn = do
   _ <- PQ.exec conn "CREATE TYPE composite_with_nullable AS (x int4, y int4)"
   pure conn
 
-spec :: Spec
-spec = withPg $ beforeAllWith setupTypes $ do
+spec :: SpecWith PQ.Connection
+spec = beforeAllWith setupTypes $ do
   describe "Fields" $ do
     it "composite roundtrip" $ \conn -> do
       pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"

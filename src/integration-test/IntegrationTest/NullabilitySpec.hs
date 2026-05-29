@@ -1,5 +1,6 @@
 module IntegrationTest.NullabilitySpec (spec) where
 
+import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Prelude
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
@@ -7,8 +8,8 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Nullability" $ do
     it "nullable column with non-null value" $ \conn -> do
       result <-

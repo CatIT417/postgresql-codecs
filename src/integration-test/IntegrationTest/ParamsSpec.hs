@@ -1,6 +1,7 @@
 module IntegrationTest.ParamsSpec (spec) where
 
 import Data.Functor.Contravariant
+import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Prelude
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
@@ -11,8 +12,8 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Params" $ do
     it "single int4 param" $ \conn -> do
       result <-

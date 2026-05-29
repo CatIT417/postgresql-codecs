@@ -1,5 +1,6 @@
 module IntegrationTest.ColumnsSpec (spec) where
 
+import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Prelude
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
@@ -8,8 +9,8 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Columns" $ do
     it "single int4 column" $ \conn -> do
       result <-

@@ -159,6 +159,7 @@ test-suite integration-test
     IntegrationTest.Prelude
     IntegrationTest.ResultSpec
     IntegrationTest.ScalarSpec
+    IntegrationTest.SpecHook
 
   build-tool-depends:
     hspec-discover:hspec-discover

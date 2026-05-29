@@ -7,7 +7,6 @@ module IntegrationTest.Prelude
     compositePointScalar,
     pgConfig,
     setupContainer,
-    withPg,
     query,
     queryParams,
   )
@@ -79,9 +78,6 @@ setupContainer = do
     _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
     pure ()
   pure conn
-
-withPg :: SpecWith PQ.Connection -> Spec
-withPg = aroundAll (TestContainers.withContainers setupContainer)
 
 -- ---------------------------------------------------------------------------
 -- Query helpers
