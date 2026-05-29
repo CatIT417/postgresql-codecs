@@ -80,6 +80,7 @@ field scalar dimensionality nullability =
                   )
                   value,
           binaryDecoder = do
+            _fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             case contentSize of
               -1 -> pure nullability.onNull
@@ -93,7 +94,7 @@ field scalar dimensionality nullability =
               (\a -> do text <- txtEnc a; Right [text])
               value,
           textualDecoder =
-            error "TODO: Implement decoding of a composite field. Take care about nesting"
+            fail "textualDecoder for composite field is not implemented"
         }
 
 composite :: Text -> Text -> Fields a a -> Scalar a
@@ -105,7 +106,7 @@ composite schemaName typeName fields =
       arrayOid = Nothing,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
-        Right (Write.lInt32 fields.count <> fieldWrites),
+        Right (Write.bInt32 fields.count <> fieldWrites),
       binaryDecoder =
         runExceptT do
           _ <-
@@ -129,5 +130,5 @@ composite schemaName typeName fields =
                             }
           ExceptT fields.binaryDecoder,
       textualEncoder = \_value -> error "TODO",
-      textualDecoder = error "TODO"
+      textualDecoder = fail "textualDecoder for composite type is not implemented"
     }
