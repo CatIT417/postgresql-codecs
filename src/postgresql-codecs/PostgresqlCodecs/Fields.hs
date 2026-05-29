@@ -45,17 +45,16 @@ instance Applicative (Fields a) where
           if left.count == 0 || right.count == 0
             then left.textualDecoder <*> right.textualDecoder
             else left.textualDecoder <*> (Atto.char ',' *> right.textualDecoder)
-     in
-    Fields
-      { count = left.count + right.count,
-        binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
-        binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
-        textualEncoder = \value -> do
-          leftTexts <- left.textualEncoder value
-          rightTexts <- right.textualEncoder value
-          Right (leftTexts <> rightTexts),
-        textualDecoder
-      }
+     in Fields
+          { count = left.count + right.count,
+            binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
+            binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
+            textualEncoder = \value -> do
+              leftTexts <- left.textualEncoder value
+              rightTexts <- right.textualEncoder value
+              Right (leftTexts <> rightTexts),
+            textualDecoder
+          }
 
 instance Profunctor Fields where
   dimap f g Fields {..} =
@@ -155,7 +154,7 @@ composite schemaName typeName fields =
 
 compositeFieldRawText :: Atto.Parser (Maybe Text)
 compositeFieldRawText = do
-  raw <- go 0 False False []
+  raw <- go (0 :: Int) False False []
   pure (if Text.null raw then Nothing else Just raw)
   where
     go depth insideQuotes escaped accumulator = do
@@ -168,18 +167,18 @@ compositeFieldRawText = do
           | otherwise -> do
               _ <- Atto.anyChar
               if
-                  | escaped ->
-                      go depth insideQuotes False (char : accumulator)
-                  | char == '\\' ->
-                      go depth insideQuotes True (char : accumulator)
-                  | char == '"' ->
-                      go depth (not insideQuotes) False (char : accumulator)
-                  | not insideQuotes && char == '(' ->
-                      go (depth + 1) insideQuotes False (char : accumulator)
-                  | not insideQuotes && char == ')' && depth > 0 ->
-                      go (depth - 1) insideQuotes False (char : accumulator)
-                  | otherwise ->
-                      go depth insideQuotes False (char : accumulator)
+                | escaped ->
+                    go depth insideQuotes False (char : accumulator)
+                | char == '\\' ->
+                    go depth insideQuotes True (char : accumulator)
+                | char == '"' ->
+                    go depth (not insideQuotes) False (char : accumulator)
+                | not insideQuotes && char == '(' ->
+                    go (depth + 1) insideQuotes False (char : accumulator)
+                | not insideQuotes && char == ')' && depth > 0 ->
+                    go (depth - 1) insideQuotes False (char : accumulator)
+                | otherwise ->
+                    go depth insideQuotes False (char : accumulator)
 
 decodeQuotedCompositeFieldText :: Text -> Either String Text
 decodeQuotedCompositeFieldText text
