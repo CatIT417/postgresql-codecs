@@ -19,11 +19,6 @@ setupContainer :: TestContainers.TestContainer (Pool.Pool PQ.Connection)
 setupContainer = do
   (host, port) <- TcPg.setup pgConfig
   pool <- liftIO $ Pool.newPool $ Pool.defaultPoolConfig (connect host port) PQ.finish 30 100
-  liftIO $ Pool.withResource pool $ \conn -> do
-    _ <- PQ.exec conn "CREATE TYPE genre AS ENUM ('Comedy', 'Action', 'Drama')"
-    _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
-    _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
-    pure ()
   pure pool
   where
     connect host port = do

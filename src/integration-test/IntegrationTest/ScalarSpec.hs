@@ -30,8 +30,13 @@ genreScalar =
     "genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
+setupTypes :: PQ.Connection -> IO PQ.Connection
+setupTypes conn = do
+  _ <- PQ.exec conn "CREATE TYPE genre AS ENUM ('Comedy', 'Action', 'Drama')"
+  pure conn
+
 spec :: SpecWith PQ.Connection
-spec = do
+spec = beforeAllWith setupTypes do
   describe "Scalar" $ do
     describe "native roundtrips" $ do
       it "int2" $ \conn -> do

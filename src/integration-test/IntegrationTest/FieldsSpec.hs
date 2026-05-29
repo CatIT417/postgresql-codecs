@@ -60,6 +60,8 @@ setupTypes :: PQ.Connection -> IO PQ.Connection
 setupTypes conn = do
   _ <- PQ.exec conn "DROP TYPE IF EXISTS composite_with_nullable CASCADE"
   _ <- PQ.exec conn "CREATE TYPE composite_with_nullable AS (x int4, y int4)"
+  _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
+  _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
   pure conn
 
 spec :: SpecWith PQ.Connection
