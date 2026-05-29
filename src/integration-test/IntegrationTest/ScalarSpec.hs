@@ -3,7 +3,7 @@ module IntegrationTest.ScalarSpec (spec) where
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
@@ -17,8 +17,21 @@ import qualified PostgresqlTypes.Uuid
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+-- ---------------------------------------------------------------------------
+-- Enum type for testing
+
+data Genre = Comedy | Action | Drama
+  deriving (Eq, Ord, Show)
+
+genreScalar :: PostgresqlCodecs.Scalar Genre
+genreScalar =
+  PostgresqlCodecs.enum
+    "public"
+    "genre"
+    [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
+
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Scalar" $ do
     describe "native roundtrips" $ do
       it "int2" $ \conn -> do
@@ -61,7 +74,7 @@ spec = withPg $ do
     describe "enum" $ do
       it "roundtrip" $ \conn -> do
         result <-
-          queryParams
+          execQuery
             conn
             "SELECT $1::genre"
             (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -74,7 +87,7 @@ spec = withPg $ do
 
 scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either Text a)
 scalarRoundtrip conn scalar val pgType =
-  queryParams
+  execQuery
     conn
     ("SELECT $1::" <> pgType)
     (PostgresqlCodecs.param scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)

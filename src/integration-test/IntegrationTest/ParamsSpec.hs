@@ -1,7 +1,8 @@
 module IntegrationTest.ParamsSpec (spec) where
 
 import Data.Functor.Contravariant
-import IntegrationTest.Prelude
+import qualified Database.PostgreSQL.LibPQ as PQ
+import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
@@ -11,12 +12,12 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
-spec :: Spec
-spec = withPg $ do
+spec :: SpecWith PQ.Connection
+spec = do
   describe "Params" $ do
     it "single int4 param" $ \conn -> do
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -26,7 +27,7 @@ spec = withPg $ do
 
     it "single int8 param" $ \conn -> do
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::int8"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -36,7 +37,7 @@ spec = withPg $ do
 
     it "single text param" $ \conn -> do
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::text"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -46,7 +47,7 @@ spec = withPg $ do
 
     it "single bool param" $ \conn -> do
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::bool"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -56,7 +57,7 @@ spec = withPg $ do
 
     it "single float8 param" $ \conn -> do
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::float8"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -73,7 +74,7 @@ spec = withPg $ do
               <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
               <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::int4, $2::int4"
           ps
