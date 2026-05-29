@@ -1,14 +1,14 @@
 module Demo.Types.Genre where
 
-import PostgresqlCodecs
+import qualified PostgresqlCodecs
 import Prelude hiding (Int8, Text)
 
 data Genre = Rock | Pop | Jazz
   deriving (Eq, Ord)
 
-genre :: Scalar Genre
+genre :: PostgresqlCodecs.Scalar Genre
 genre =
-  enum
+  PostgresqlCodecs.enum
     ""
     "genre"
     [ ("rock", Rock),

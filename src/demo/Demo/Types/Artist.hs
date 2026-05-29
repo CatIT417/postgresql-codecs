@@ -1,20 +1,20 @@
 module Demo.Types.Artist where
 
 import Demo.Types.Genre
-import PostgresqlCodecs
-import Prelude hiding (Int8, Text)
+import qualified PostgresqlCodecs
+import Prelude hiding (Int8)
 
 data Artist = Artist
-  { name :: Text,
+  { name :: PostgresqlCodecs.Text,
     genre :: Genre
   }
 
-artist :: Scalar Artist
+artist :: PostgresqlCodecs.Scalar Artist
 artist =
-  composite
+  PostgresqlCodecs.composite
     ""
     "artist"
     ( Artist
-        <$> lmap (.name) (field native d0 nonNullable)
-        <*> lmap (.genre) (field genre d0 nonNullable)
+        <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.genre) (PostgresqlCodecs.field genre PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )

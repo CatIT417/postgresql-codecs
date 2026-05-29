@@ -36,9 +36,28 @@ data Columns a = Columns
     textDecoder :: forall f. (TextDecoder f) => f a
   }
 
-instance Functor Columns
+instance Functor Columns where
+  fmap f Columns {count = cnt, binaryDecoder = bd, textDecoder = td} =
+    Columns
+      { count = cnt,
+        binaryDecoder = fmap f bd,
+        textDecoder = fmap f td
+      }
 
-instance Applicative Columns
+instance Applicative Columns where
+  pure x =
+    Columns
+      { count = 0,
+        binaryDecoder = pure x,
+        textDecoder = pure x
+      }
+  Columns {count = cf, binaryDecoder = bdf, textDecoder = tdf}
+    <*> Columns {count = cx, binaryDecoder = bdx, textDecoder = tdx} =
+      Columns
+        { count = cf + cx,
+          binaryDecoder = bdf <*> bdx,
+          textDecoder = tdf <*> tdx
+        }
 
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
 column scalar dimensionality nullability =

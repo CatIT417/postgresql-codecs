@@ -54,12 +54,13 @@ instance Monoid (Params a) where
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid
+      theParamOid = fromMaybe 0 (if dimensionality.isArray then scalar.arrayOid else scalar.baseOid)
       binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
       txtEnc = dimensionality.textualEncoder scalar.textualEncoder
       Nullability {encoder = enc} = nullability
    in Params
         { count = 1,
-          oids = [baseOid],
+          oids = [theParamOid],
           binaryEncoder = \c -> fmap (: []) (enc (Right Nothing) (\a -> fmap Just (binEnc a)) c),
           textualEncoder = \c -> fmap (: []) (enc (Right Nothing) (\a -> fmap Just (txtEnc a)) c)
         }

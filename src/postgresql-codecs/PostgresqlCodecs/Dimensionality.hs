@@ -12,7 +12,8 @@ import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
 data Dimensionality scalar vec = Dimensionality
-  { binaryEncoder ::
+  { isArray :: Bool,
+    binaryEncoder ::
       Word32 ->
       (scalar -> Either EncodingError Write.Write) ->
       (vec -> Either EncodingError Write.Write),
@@ -31,7 +32,8 @@ data Dimensionality scalar vec = Dimensionality
 d0 :: Dimensionality a a
 d0 =
   Dimensionality
-    { binaryEncoder = const id,
+    { isArray = False,
+      binaryEncoder = const id,
       binaryDecoder = const id,
       textualEncoder = id,
       textualDecoder = id
@@ -41,7 +43,8 @@ d1 :: Nullability a b -> Dimension b c -> Dimensionality a c
 d1 elementNullability (Dimension construct1 destruct1 count1) =
   let Nullability {encoder = elementEncoder} = elementNullability
    in Dimensionality
-        { binaryEncoder =
+        { isArray = True,
+          binaryEncoder =
             \baseOid scalarEncoder vec ->
               let head =
                     Writes.arrayHeader 1 elementNullability.nullable baseOid [count1 vec]

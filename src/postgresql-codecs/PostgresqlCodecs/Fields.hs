@@ -42,13 +42,13 @@ instance Applicative (Fields a) where
   (<*>) left right =
     Fields
       { count = left.count + right.count,
-        binaryEncoder = \value -> left.binaryEncoder value <> right.binaryEncoder value,
+        binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
         binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
         textualEncoder = \value -> do
           leftTexts <- left.textualEncoder value
           rightTexts <- right.textualEncoder value
           Right (leftTexts <> rightTexts),
-        textualDecoder = error "TODO: Merge with care taken about multiple fields"
+        textualDecoder = left.textualDecoder <*> right.textualDecoder
       }
 
 instance Profunctor Fields where
@@ -80,6 +80,7 @@ field scalar dimensionality nullability =
                   )
                   value,
           binaryDecoder = do
+            _fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             case contentSize of
               -1 -> pure nullability.onNull
@@ -105,7 +106,7 @@ composite schemaName typeName fields =
       arrayOid = Nothing,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
-        Right (Write.lInt32 fields.count <> fieldWrites),
+        Right (Write.bInt32 fields.count <> fieldWrites),
       binaryDecoder =
         runExceptT do
           _ <-
