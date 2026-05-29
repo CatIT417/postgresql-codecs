@@ -3,7 +3,7 @@ module IntegrationTest.ScalarSpec (spec) where
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (query, queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
@@ -16,6 +16,19 @@ import qualified PostgresqlTypes.Int8
 import qualified PostgresqlTypes.Uuid
 import Test.Hspec
 import Prelude
+
+-- ---------------------------------------------------------------------------
+-- Enum type for testing
+
+data Genre = Comedy | Action | Drama
+  deriving (Eq, Ord, Show)
+
+genreScalar :: PostgresqlCodecs.Scalar Genre
+genreScalar =
+  PostgresqlCodecs.enum
+    "public"
+    "genre"
+    [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
 spec :: SpecWith PQ.Connection
 spec = do

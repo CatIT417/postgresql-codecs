@@ -1,7 +1,7 @@
 module IntegrationTest.ColumnsSpec (spec) where
 
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (query)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4

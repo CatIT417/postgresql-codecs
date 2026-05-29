@@ -3,7 +3,7 @@ module IntegrationTest.ResultSpec (spec) where
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (query, queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4

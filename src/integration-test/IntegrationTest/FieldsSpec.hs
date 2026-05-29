@@ -4,7 +4,7 @@ module IntegrationTest.FieldsSpec (spec) where
 
 import Data.Profunctor
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (query, queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
@@ -12,7 +12,33 @@ import Test.Hspec
 import Prelude
 
 -- ---------------------------------------------------------------------------
--- Custom composite types for testing
+-- Composite types from shared test schema
+
+data CompositePoint = CompositePoint {ptX :: PostgresqlTypes.Int4, ptY :: PostgresqlTypes.Int4}
+  deriving (Eq, Show)
+
+compositePointScalar :: PostgresqlCodecs.Scalar CompositePoint
+compositePointScalar =
+  PostgresqlCodecs.composite
+    "public"
+    "composite_point"
+    ( CompositePoint
+        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+    )
+
+data CompositeContainer = CompositeContainer {containerPoint :: CompositePoint, containerLabel :: PostgresqlTypes.Text}
+  deriving (Eq, Show)
+
+compositeContainerScalar :: PostgresqlCodecs.Scalar CompositeContainer
+compositeContainerScalar =
+  PostgresqlCodecs.composite
+    "public"
+    "composite_container"
+    ( CompositeContainer
+        <$> lmap (.containerPoint) (PostgresqlCodecs.field compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+    )
 
 data CompositeWithNullable = CompositeWithNullable
   { cnX :: PostgresqlTypes.Int4,

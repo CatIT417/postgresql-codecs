@@ -1,7 +1,7 @@
 module IntegrationTest.NullabilitySpec (spec) where
 
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Prelude
+import IntegrationTest.Adapter (query, queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4

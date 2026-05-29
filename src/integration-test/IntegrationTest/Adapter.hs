@@ -2,6 +2,8 @@
 
 module IntegrationTest.Adapter
   ( execQuery,
+    query,
+    queryParams,
   )
 where
 
@@ -156,3 +158,12 @@ execQuery conn sql ps result input = do
     queryError pgResult = do
       mErr <- PQ.resultErrorMessage pgResult
       pure $ Left $ maybe "Query failed" Text.Encoding.decodeUtf8 mErr
+
+-- ---------------------------------------------------------------------------
+-- Convenience wrappers
+
+query :: PQ.Connection -> BS.ByteString -> PostgresqlCodecs.Result result -> IO (Either Text result)
+query conn sql result = execQuery conn sql mempty result ()
+
+queryParams :: PQ.Connection -> BS.ByteString -> PostgresqlCodecs.Params params -> PostgresqlCodecs.Result result -> params -> IO (Either Text result)
+queryParams = execQuery
