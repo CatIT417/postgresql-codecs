@@ -24,7 +24,6 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import qualified IntegrationTest.Adapter as Adapter
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
-import Test.Hspec
 import qualified TestContainers.Hspec as TestContainers
 import qualified TestcontainersPostgresql as TcPg
 import Prelude
