@@ -4,7 +4,6 @@ import qualified Data.Pool as Pool
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
-import qualified PostgresqlCodecs.DecodingError as DecodingError
 import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
@@ -45,8 +44,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           True
           ()
-      result
-        `shouldBe` Left (Report.fromModel (("Unexpected null" :: DecodingError.DecodingError)))
+      result `shouldBe` Left ("Unexpected null" :: Report.Report)
 
     it "nullable param with Nothing" $ \conn -> do
       result <-

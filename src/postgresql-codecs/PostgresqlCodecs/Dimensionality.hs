@@ -1,12 +1,11 @@
 module PostgresqlCodecs.Dimensionality where
 
 import qualified Data.Attoparsec.Text as Atto
-import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimension
 import qualified PostgresqlCodecs.Dimensionality.Writes as Writes
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report (..))
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -15,15 +14,15 @@ data Dimensionality scalar vec = Dimensionality
   { dims :: Int,
     binaryEncoder ::
       Word32 ->
-      (scalar -> Either EncodingError Write.Write) ->
-      (vec -> Either EncodingError Write.Write),
+      (scalar -> Either Report Write.Write) ->
+      (vec -> Either Report Write.Write),
     binaryDecoder ::
       Word32 ->
-      PtrPeeker.Variable (Either DecodingError scalar) ->
-      PtrPeeker.Variable (Either DecodingError vec),
+      PtrPeeker.Variable (Either Report scalar) ->
+      PtrPeeker.Variable (Either Report vec),
     textualEncoder ::
-      (scalar -> Either EncodingError TextBuilder.TextBuilder) ->
-      (vec -> Either EncodingError TextBuilder.TextBuilder),
+      (scalar -> Either Report TextBuilder.TextBuilder) ->
+      (vec -> Either Report TextBuilder.TextBuilder),
     textualDecoder ::
       Atto.Parser scalar ->
       Atto.Parser vec
@@ -81,43 +80,45 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
               -- Interrupt early if baseOid does not match the expected one.
               when (baseOid /= expectedBaseOid) do
                 throwError
-                  DecodingError
+                  Report
                     { message = "Base OID mismatch",
-                      details = "Expected " <> TextBuilder.toText (TextBuilder.decimal expectedBaseOid) <> ", but got " <> TextBuilder.toText (TextBuilder.decimal baseOid),
-                      row = Nothing,
-                      column = Nothing,
-                      inputLocation = ["base-oid"],
-                      inputOffset = 0,
-                      failingInput = TextBuilder.toText (TextBuilder.decimal baseOid),
-                      expectedInputs = Just [TextBuilder.toText (TextBuilder.decimal expectedBaseOid)]
+                      suggestion = "",
+                      details =
+                        [ ("details", "Expected " <> TextBuilder.toText (TextBuilder.decimal expectedBaseOid) <> ", but got " <> TextBuilder.toText (TextBuilder.decimal baseOid)),
+                          ("inputLocation", "[base-oid]"),
+                          ("inputOffset", "0"),
+                          ("failingInput", TextBuilder.toText (TextBuilder.decimal baseOid)),
+                          ("expectedInputs", TextBuilder.toText (TextBuilder.decimal expectedBaseOid))
+                        ]
                     }
 
               -- Interrupt early if the amount of dimensions is wrong.
               when (dimensionCount /= 1) do
                 throwError
-                  DecodingError
+                  Report
                     { message = "Dimension count mismatch",
-                      details = "Expected 1 dimension, but got " <> TextBuilder.toText (TextBuilder.decimal dimensionCount),
-                      row = Nothing,
-                      column = Nothing,
-                      inputLocation = ["dimension-count"],
-                      inputOffset = 0,
-                      failingInput = TextBuilder.toText (TextBuilder.decimal dimensionCount),
-                      expectedInputs = Just ["1"]
+                      suggestion = "",
+                      details =
+                        [ ("details", "Expected 1 dimension, but got " <> TextBuilder.toText (TextBuilder.decimal dimensionCount)),
+                          ("inputLocation", "[dimension-count]"),
+                          ("inputOffset", "0"),
+                          ("failingInput", TextBuilder.toText (TextBuilder.decimal dimensionCount)),
+                          ("expectedInputs", "1")
+                        ]
                     }
 
               -- Interrupt early if the array contains nulls and they are not expected.
               when (hasNulls && not elementNullability.nullable) do
                 throwError
-                  DecodingError
+                  Report
                     { message = "Unexpected nulls in array",
-                      details = "Array contains nulls, but element type is non-nullable",
-                      row = Nothing,
-                      column = Nothing,
-                      inputLocation = ["contains-nulls"],
-                      inputOffset = 0,
-                      failingInput = "",
-                      expectedInputs = Nothing
+                      suggestion = "",
+                      details =
+                        [ ("details", "Array contains nulls, but element type is non-nullable"),
+                          ("inputLocation", "[contains-nulls]"),
+                          ("inputOffset", "0"),
+                          ("failingInput", "")
+                        ]
                     }
 
               (size1, lowerBound1) <- lift do
@@ -127,15 +128,16 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
               -- Interrupt early if the lower-bound value is not supported.
               when (lowerBound1 /= 1) do
                 throwError
-                  DecodingError
+                  Report
                     { message = "Unsupported lower bound",
-                      details = "Expected lower bound 1, but got " <> TextBuilder.toText (TextBuilder.decimal lowerBound1),
-                      row = Nothing,
-                      column = Nothing,
-                      inputLocation = ["lower-bound"],
-                      inputOffset = 0,
-                      failingInput = TextBuilder.toText (TextBuilder.decimal lowerBound1),
-                      expectedInputs = Just ["1"]
+                      suggestion = "",
+                      details =
+                        [ ("details", "Expected lower bound 1, but got " <> TextBuilder.toText (TextBuilder.decimal lowerBound1)),
+                          ("inputLocation", "[lower-bound]"),
+                          ("inputOffset", "0"),
+                          ("failingInput", TextBuilder.toText (TextBuilder.decimal lowerBound1)),
+                          ("expectedInputs", "1")
+                        ]
                     }
 
               construct1 (fromIntegral size1) do

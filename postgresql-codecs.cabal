@@ -89,8 +89,6 @@ library
   hs-source-dirs: src/postgresql-codecs
   exposed-modules:
     PostgresqlCodecs
-    PostgresqlCodecs.DecodingError
-    PostgresqlCodecs.EncodingError
     PostgresqlCodecs.Report
 
   other-modules:

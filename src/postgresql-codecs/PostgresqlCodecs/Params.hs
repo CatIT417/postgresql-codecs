@@ -3,9 +3,9 @@
 module PostgresqlCodecs.Params where
 
 import PostgresqlCodecs.Dimensionality
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report)
 import PostgresqlCodecs.Scalar
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -18,10 +18,10 @@ data Params a = Params
     oids :: [Word32],
     -- | Binary encoder producing one 'Maybe Write.Write' per parameter.
     -- 'Nothing' represents a NULL parameter.
-    binaryEncoder :: a -> Either EncodingError [Maybe Write.Write],
+    binaryEncoder :: a -> Either Report [Maybe Write.Write],
     -- | Textual encoder producing one 'Maybe TextBuilder' per parameter.
     -- 'Nothing' represents a NULL parameter.
-    textualEncoder :: a -> Either EncodingError [Maybe TextBuilder.TextBuilder]
+    textualEncoder :: a -> Either Report [Maybe TextBuilder.TextBuilder]
   }
 
 instance Contravariant Params where

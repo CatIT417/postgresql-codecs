@@ -2,11 +2,10 @@ module PostgresqlCodecs.Fields where
 
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Text as Text
-import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimensionality
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report (..))
 import PostgresqlCodecs.Scalar
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -14,10 +13,10 @@ import qualified TextBuilder
 
 data Fields a b = Fields
   { count :: Int32,
-    binaryEncoder :: a -> Either EncodingError Write.Write,
-    binaryDecoder :: PtrPeeker.Variable (Either DecodingError b),
+    binaryEncoder :: a -> Either Report Write.Write,
+    binaryDecoder :: PtrPeeker.Variable (Either Report b),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> Either EncodingError [TextBuilder.TextBuilder],
+    textualEncoder :: a -> Either Report [TextBuilder.TextBuilder],
     textualDecoder :: Atto.Parser b
   }
 
@@ -103,7 +102,7 @@ field scalar dimensionality nullability =
             case rawField of
               Nothing ->
                 case nullability.onNull of
-                  Left decodingError -> fail (Text.unpack decodingError.message)
+                  Left report -> fail (Text.unpack report.message)
                   Right value -> pure value
               Just fieldText -> do
                 normalizedFieldText <-
@@ -137,15 +136,16 @@ composite schemaName typeName fields =
                       then Right ()
                       else
                         Left
-                          DecodingError
+                          Report
                             { message = "Field count mismatch",
-                              details = "Expected " <> TextBuilder.toText (TextBuilder.decimal fields.count) <> " fields, but got " <> TextBuilder.toText (TextBuilder.decimal count),
-                              row = Nothing,
-                              column = Nothing,
-                              inputLocation = ["field-count"],
-                              inputOffset = 0,
-                              failingInput = TextBuilder.toText (TextBuilder.decimal count),
-                              expectedInputs = Just [TextBuilder.toText (TextBuilder.decimal fields.count)]
+                              suggestion = "",
+                              details =
+                                [ ("details", "Expected " <> TextBuilder.toText (TextBuilder.decimal fields.count) <> " fields, but got " <> TextBuilder.toText (TextBuilder.decimal count)),
+                                  ("inputLocation", "[field-count]"),
+                                  ("inputOffset", "0"),
+                                  ("failingInput", TextBuilder.toText (TextBuilder.decimal count)),
+                                  ("expectedInputs", TextBuilder.toText (TextBuilder.decimal fields.count))
+                                ]
                             }
           ExceptT fields.binaryDecoder,
       textualEncoder = \_value -> error "TODO",

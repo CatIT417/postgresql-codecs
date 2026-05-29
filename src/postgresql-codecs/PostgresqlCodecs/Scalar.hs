@@ -6,9 +6,8 @@ import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import PostgresqlCodecs.DecodingError
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report (..))
 import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -32,10 +31,10 @@ data Scalar a = Scalar
     arrayOid :: Maybe Word32,
     -- | Whether this scalar type supports binary encoding/decoding.
     supportsBinary :: Bool,
-    binaryEncoder :: a -> Either EncodingError Write.Write,
-    binaryDecoder :: PtrPeeker.Variable (Either DecodingError a),
+    binaryEncoder :: a -> Either Report Write.Write,
+    binaryDecoder :: PtrPeeker.Variable (Either Report a),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> Either EncodingError TextBuilder.TextBuilder,
+    textualEncoder :: a -> Either Report TextBuilder.TextBuilder,
     -- | Decode from Postgres textual format.
     textualDecoder :: Atto.Parser a
   }
@@ -54,41 +53,42 @@ instance Invariant Scalar where
 native :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
 native =
   let -- Convert decoding errors between layers (they have identical shapes)
-      convertError :: PostgresqlTypes.DecodingError -> DecodingError
+      convertError :: PostgresqlTypes.DecodingError -> Report
       convertError PostgresqlTypes.DecodingError {location, reason} =
         case reason of
           PostgresqlTypes.ParsingDecodingErrorReason details input ->
-            DecodingError
+            Report
               { message = "Parsing error",
-                details = details,
-                row = Nothing,
-                column = Nothing,
-                inputLocation = location,
-                inputOffset = 0,
-                failingInput = Text.Encoding.decodeUtf8With (\_ _ -> Just '?') input,
-                expectedInputs = Nothing
+                suggestion = "",
+                details =
+                  [ ("details", details),
+                    ("inputLocation", "[" <> Text.intercalate ", " location <> "]"),
+                    ("inputOffset", "0"),
+                    ("failingInput", Text.Encoding.decodeUtf8With (\_ _ -> Just '?') input)
+                  ]
               }
           PostgresqlTypes.UnexpectedValueDecodingErrorReason expected actual ->
-            DecodingError
+            Report
               { message = "Unexpected value",
-                details = "Expected: " <> expected <> ", got: " <> actual,
-                row = Nothing,
-                column = Nothing,
-                inputLocation = location,
-                inputOffset = 0,
-                failingInput = actual,
-                expectedInputs = Just [expected]
+                suggestion = "",
+                details =
+                  [ ("details", "Expected: " <> expected <> ", got: " <> actual),
+                    ("inputLocation", "[" <> Text.intercalate ", " location <> "]"),
+                    ("inputOffset", "0"),
+                    ("failingInput", actual),
+                    ("expectedInputs", "[" <> expected <> "]")
+                  ]
               }
           PostgresqlTypes.UnsupportedValueDecodingErrorReason details value ->
-            DecodingError
+            Report
               { message = "Unsupported value",
-                details = details,
-                row = Nothing,
-                column = Nothing,
-                inputLocation = location,
-                inputOffset = 0,
-                failingInput = value,
-                expectedInputs = Nothing
+                suggestion = "",
+                details =
+                  [ ("details", details),
+                    ("inputLocation", "[" <> Text.intercalate ", " location <> "]"),
+                    ("inputOffset", "0"),
+                    ("failingInput", value)
+                  ]
               }
    in Scalar
         { schemaName = "",
@@ -112,14 +112,10 @@ enum schema tName variants =
           Just label -> Right (Write.textUtf8 label)
           Nothing ->
             Left
-              EncodingError
+              Report
                 { message = "Unsupported enum value",
-                  details = [("schema", schema), ("type", tName)],
-                  param = 0,
-                  inputLocation = [],
-                  inputOffset = 0,
-                  failingInput = "",
-                  expectedInputs = Nothing
+                  suggestion = "",
+                  details = [("schema", schema), ("type", tName)]
                 }
 
       -- Binary decoder: decode from text and look up in variants map
@@ -129,15 +125,15 @@ enum schema tName variants =
           Left e ->
             pure
               ( Left
-                  DecodingError
+                  Report
                     { message = "Invalid UTF-8",
-                      details = fromString (show e),
-                      row = Nothing,
-                      column = Nothing,
-                      inputLocation = [],
-                      inputOffset = 0,
-                      failingInput = Text.Encoding.decodeUtf8With (\_ _ -> Just '?') bytes,
-                      expectedInputs = Nothing
+                      suggestion = "",
+                      details =
+                        [ ("details", fromString (show e)),
+                          ("inputLocation", "[]"),
+                          ("inputOffset", "0"),
+                          ("failingInput", Text.Encoding.decodeUtf8With (\_ _ -> Just '?') bytes)
+                        ]
                     }
               )
           Right label ->
@@ -146,15 +142,16 @@ enum schema tName variants =
               Nothing ->
                 pure
                   ( Left
-                      DecodingError
+                      Report
                         { message = "Unexpected enum value",
-                          details = "Expected one of: " <> Text.intercalate ", " (map fst variants),
-                          row = Nothing,
-                          column = Nothing,
-                          inputLocation = [],
-                          inputOffset = 0,
-                          failingInput = label,
-                          expectedInputs = Just (map fst variants)
+                          suggestion = "",
+                          details =
+                            [ ("details", "Expected one of: " <> Text.intercalate ", " (map fst variants)),
+                              ("inputLocation", "[]"),
+                              ("inputOffset", "0"),
+                              ("failingInput", label),
+                              ("expectedInputs", "[" <> Text.intercalate ", " (map fst variants) <> "]")
+                            ]
                         }
                   )
 
@@ -164,14 +161,13 @@ enum schema tName variants =
           Just label -> Right (TextBuilder.text label)
           Nothing ->
             Left
-              EncodingError
+              Report
                 { message = "Invalid enum value",
-                  details = [("type", tName)],
-                  param = 0,
-                  inputLocation = [],
-                  inputOffset = 0,
-                  failingInput = "",
-                  expectedInputs = Just (map fst variants)
+                  suggestion = "",
+                  details =
+                    [ ("type", tName),
+                      ("expectedInputs", "[" <> Text.intercalate ", " (map fst variants) <> "]")
+                    ]
                 }
 
       textDecoder = do

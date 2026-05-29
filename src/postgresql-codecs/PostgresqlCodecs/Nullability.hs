@@ -1,11 +1,11 @@
 module PostgresqlCodecs.Nullability where
 
-import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report)
 
 data Nullability a b = Nullability
   { nullable :: Bool,
-    onNull :: Either DecodingError b,
+    onNull :: Either Report b,
     onNonNull :: a -> b,
     encoder ::
       forall c.

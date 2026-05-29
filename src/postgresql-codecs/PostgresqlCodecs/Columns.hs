@@ -3,10 +3,10 @@
 module PostgresqlCodecs.Columns where
 
 import qualified Data.Attoparsec.Text as Atto
-import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report (Report)
 import PostgresqlCodecs.Scalar
 import qualified PtrPeeker
 
@@ -14,8 +14,8 @@ import qualified PtrPeeker
 
 class (Applicative f) => ConsumesColumns f where
   consumeColumn ::
-    Either DecodingError a ->
-    PtrPeeker.Variable (Either DecodingError a) ->
+    Either Report a ->
+    PtrPeeker.Variable (Either Report a) ->
     Atto.Parser a ->
     f a
 
