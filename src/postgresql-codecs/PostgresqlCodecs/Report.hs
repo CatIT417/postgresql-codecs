@@ -9,7 +9,6 @@ module PostgresqlCodecs.Report
     fromModel,
 
     -- ** Mappers
-    nest,
     suggest,
     addDetail,
     addDetailWithKey,
@@ -20,10 +19,7 @@ module PostgresqlCodecs.Report
   )
 where
 
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Text as Aeson.Text
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy as Text.Lazy
 import PostgresqlCodecs.Prelude
 import qualified TextBuilder
 
@@ -31,8 +27,7 @@ import qualified TextBuilder
 data Report = Report
   { message :: Text,
     suggestion :: Text,
-    path :: [Text],
-    details :: [(Text, Aeson.Value)]
+    details :: [(Text, Text)]
   }
   deriving stock (Show, Eq)
 
@@ -41,7 +36,6 @@ instance IsString Report where
     Report
       { message = fromString string,
         suggestion = "",
-        path = [],
         details = []
       }
 
@@ -59,17 +53,12 @@ toTextBuilder :: Report -> TextBuilder.TextBuilder
 toTextBuilder report =
   TextBuilder.text report.message
     <> buildSuggestion report.suggestion
-    <> buildPath report.path
     <> buildDetails report.details
   where
     buildSuggestion "" =
       mempty
     buildSuggestion s =
       TextBuilder.text "\nSuggestion: " <> TextBuilder.text s
-    buildPath [] =
-      mempty
-    buildPath p =
-      TextBuilder.text "\nPath: " <> TextBuilder.text (Text.intercalate " > " p)
     buildDetails [] =
       mempty
     buildDetails ds =
@@ -78,9 +67,7 @@ toTextBuilder report =
       TextBuilder.text "\n  "
         <> TextBuilder.text key
         <> TextBuilder.text ": "
-        <> TextBuilder.text (renderValue value)
-    renderValue =
-      Text.Lazy.toStrict . Aeson.Text.encodeToLazyText
+        <> TextBuilder.text value
 
 -- | Structured model of a report.
 class IsReport a where
@@ -91,14 +78,14 @@ class IsReport a where
   taggedStaticSuggestion :: Tagged a Text
 
   -- | Dynamic details specific to the value.
-  toReportDetails :: a -> [(Text, Aeson.Value)]
+  toReportDetails :: a -> [(Text, Text)]
 
 instance IsReport SomeException where
   taggedStaticMessage = Tagged "SomeException"
   taggedStaticSuggestion = Tagged ""
   toReportDetails exception =
-    [ ("type", Aeson.toJSON (show (typeOf exception))),
-      ("message", Aeson.toJSON (displayException exception))
+    [ ("type", Text.pack (show (typeOf exception))),
+      ("message", Text.pack (displayException exception))
     ]
 
 -- | Generalize a structured report model to 'Report'.
@@ -107,15 +94,7 @@ fromModel report =
   Report
     { message = witness taggedStaticMessage report,
       suggestion = witness taggedStaticSuggestion report,
-      path = [],
       details = toReportDetails report
-    }
-
--- | Prepend a path segment to the report's context path.
-nest :: Text -> Report -> Report
-nest pathPrefix report =
-  report
-    { path = pathPrefix : report.path
     }
 
 -- | Attach a suggestion to a report.
@@ -126,31 +105,27 @@ suggest suggestion report =
 -- | Structured detail value that can be attached to a 'Report'.
 class IsDetail a where
   taggedDetailKey :: Tagged a Text
-  toReportDetailValue :: a -> Aeson.Value
+  toReportDetailValue :: a -> Text
 
 instance IsDetail Text where
   taggedDetailKey = Tagged "text"
-  toReportDetailValue = Aeson.toJSON
+  toReportDetailValue = id
 
 instance IsDetail Int where
   taggedDetailKey = Tagged "int"
-  toReportDetailValue = Aeson.toJSON
+  toReportDetailValue = Text.pack . show
 
 instance IsDetail Integer where
   taggedDetailKey = Tagged "integer"
-  toReportDetailValue = Aeson.toJSON
+  toReportDetailValue = Text.pack . show
 
 instance IsDetail Double where
   taggedDetailKey = Tagged "double"
-  toReportDetailValue = Aeson.toJSON
+  toReportDetailValue = Text.pack . show
 
 instance IsDetail Bool where
   taggedDetailKey = Tagged "bool"
-  toReportDetailValue = Aeson.toJSON
-
-instance IsDetail Aeson.Value where
-  taggedDetailKey = Tagged "json"
-  toReportDetailValue = id
+  toReportDetailValue = Text.pack . show
 
 -- | Add a detail to a report using the detail type's default key.
 addDetail :: (IsDetail a) => a -> Report -> Report
@@ -158,7 +133,6 @@ addDetail detail report =
   Report
     { message = report.message,
       suggestion = report.suggestion,
-      path = report.path,
       details = (witness taggedDetailKey detail, toReportDetailValue detail) : report.details
     }
 
@@ -168,6 +142,5 @@ addDetailWithKey key value report =
   Report
     { message = report.message,
       suggestion = report.suggestion,
-      path = report.path,
       details = (key, toReportDetailValue value) : report.details
     }
