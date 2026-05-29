@@ -1,9 +1,9 @@
 module IntegrationTest.Spec (spec) where
 
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS8
-import Data.Functor.Contravariant (contramap)
-import Data.Profunctor (lmap)
+import Data.Functor.Contravariant
+import Data.Profunctor
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ

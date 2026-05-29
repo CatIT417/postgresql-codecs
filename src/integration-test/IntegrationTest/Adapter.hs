@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module IntegrationTest.Adapter
-  ( RowDecoder (..),
-    execQuery,
+  ( execQuery,
   )
 where
 
@@ -26,9 +25,9 @@ import qualified PtrPoker.Write as Write
 import Prelude
 
 -- | A libpq-based row decoder that threads through column index state.
-newtype RowDecoder a = RowDecoder
-  { runRowDecoder :: PQ.Result -> PQ.Row -> IORef Int -> IO (Either DecodingError a)
-  }
+newtype RowDecoder a
+  = RowDecoder
+      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either DecodingError a))
 
 instance Functor RowDecoder where
   fmap f (RowDecoder run) = RowDecoder $ \res row colRef ->
