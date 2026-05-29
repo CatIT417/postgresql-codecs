@@ -1,6 +1,6 @@
 module PostgresqlCodecs.EncodingError where
 
-import qualified Data.Aeson as Aeson
+import qualified Data.Text as Text
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (IsReport (..))
 
@@ -37,11 +37,26 @@ instance IsReport EncodingError where
   taggedStaticSuggestion =
     Tagged "Check that the value is valid for the target PostgreSQL type."
   toReportDetails EncodingError {..} =
-    [ ("message", Aeson.toJSON message),
-      ("details", Aeson.toJSON details),
-      ("param", Aeson.toJSON param),
-      ("inputLocation", Aeson.toJSON inputLocation),
-      ("inputOffset", Aeson.toJSON inputOffset),
-      ("failingInput", Aeson.toJSON failingInput),
-      ("expectedInputs", Aeson.toJSON expectedInputs)
-    ]
+    baseDetails <> optionalDetails
+    where
+      baseDetails =
+        [ ("message", message),
+          ("details", renderKeyValues details),
+          ("param", renderInt param),
+          ("inputLocation", renderTextList inputLocation),
+          ("inputOffset", renderInt inputOffset),
+          ("failingInput", failingInput)
+        ]
+      optionalDetails =
+        maybe [] (\value -> [("expectedInputs", renderTextList value)]) expectedInputs
+      renderInt =
+        Text.pack . show
+      renderTextList values =
+        "[" <> Text.intercalate ", " values <> "]"
+      renderKeyValues pairs =
+        case pairs of
+          [] -> "[]"
+          _ ->
+            "[" <> Text.intercalate ", " (map renderPair pairs) <> "]"
+      renderPair (key, value) =
+        key <> ": " <> value

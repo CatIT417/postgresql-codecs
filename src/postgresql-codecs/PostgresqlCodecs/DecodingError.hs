@@ -1,6 +1,6 @@
 module PostgresqlCodecs.DecodingError where
 
-import qualified Data.Aeson as Aeson
+import qualified Data.Text as Text
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (IsReport (..))
 
@@ -41,12 +41,22 @@ instance IsReport DecodingError where
   taggedStaticSuggestion =
     Tagged "Check that the data matches the expected PostgreSQL format."
   toReportDetails DecodingError {..} =
-    [ ("message", Aeson.toJSON message),
-      ("details", Aeson.toJSON details),
-      ("row", Aeson.toJSON row),
-      ("column", Aeson.toJSON column),
-      ("inputLocation", Aeson.toJSON inputLocation),
-      ("inputOffset", Aeson.toJSON inputOffset),
-      ("failingInput", Aeson.toJSON failingInput),
-      ("expectedInputs", Aeson.toJSON expectedInputs)
-    ]
+    baseDetails <> optionalDetails
+    where
+      baseDetails =
+        [ ("message", message),
+          ("details", details),
+          ("inputLocation", renderTextList inputLocation),
+          ("inputOffset", renderInt inputOffset),
+          ("failingInput", failingInput)
+        ]
+      optionalDetails =
+        catMaybes
+          [ fmap (\value -> ("row", renderInt value)) row,
+            fmap (\value -> ("column", renderInt value)) column,
+            fmap (\value -> ("expectedInputs", renderTextList value)) expectedInputs
+          ]
+      renderInt =
+        Text.pack . show
+      renderTextList values =
+        "[" <> Text.intercalate ", " values <> "]"
