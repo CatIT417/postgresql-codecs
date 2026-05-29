@@ -1,8 +1,8 @@
 module Main where
 
-import Prelude
 import IntegrationTest.Spec
-import Test.Tasty (defaultMain)
+import Test.Hspec (hspec)
+import Prelude
 
 main :: IO ()
-main = defaultMain spec
+main = hspec spec

@@ -14,11 +14,9 @@ import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Float8
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
-import Test.Tasty
-import Test.Tasty.HUnit
-import Test.Tasty.Runners (NumThreads (..))
+import Test.Hspec
+import qualified TestContainers.Hspec as TestContainers
 import qualified TestContainers.Monad as TestContainers
-import qualified TestContainers.Tasty as TestContainers
 import qualified TestcontainersPostgresql as TcPg
 import Prelude
 
@@ -75,201 +73,179 @@ setupContainer = do
   pure conn
 
 -- ---------------------------------------------------------------------------
--- Test tree
+-- Test spec
 
-spec :: TestTree
+spec :: Spec
 spec =
-  localOption (NumThreads 1) $
-    TestContainers.withContainers setupContainer $ \getConn ->
-      testGroup
-        "Integration"
-        [ -- Result kinds
-          testCase "rowsAffected" $ do
-            conn <- getConn
-            _ <- PQ.exec conn "CREATE TEMP TABLE t_affected (x int4)"
-            result <-
-              Adapter.execQuery
-                conn
-                "INSERT INTO t_affected SELECT generate_series(1, 5)"
-                mempty
-                PostgresqlCodecs.rowsAffected
-                ()
-            result @?= Right 5,
-          testCase "oneRow int4" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
-            result @?= Right (PostgresqlTypes.Int4.fromInt32 42),
-          testCase "someRow with result" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
-            result @?= Right (Just (PostgresqlTypes.Int4.fromInt32 42)),
-          testCase "someRow without result" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT 42::int4 WHERE false"
-                mempty
-                (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                ()
-            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
-          testCase "manyRows" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
-                mempty
-                (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                ()
-            result @?= Right (Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]),
-          -- Scalar parameter roundtrips
-          testCase "param int4 roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                (PostgresqlTypes.Int4.fromInt32 42)
-            result @?= Right (PostgresqlTypes.Int4.fromInt32 42),
-          testCase "param int8 roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int8"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                (PostgresqlTypes.Int8.fromInt64 9876543210)
-            result @?= Right (PostgresqlTypes.Int8.fromInt64 9876543210),
-          testCase "param text roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::text"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                ("hello" :: PostgresqlTypes.Text)
-            result @?= Right ("hello" :: PostgresqlTypes.Text),
-          testCase "param bool roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::bool"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                (PostgresqlTypes.Bool.fromBool True)
-            result @?= Right (PostgresqlTypes.Bool.fromBool True),
-          testCase "param float8 roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::float8"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                (PostgresqlTypes.Float8.fromDouble 3.14)
-            result @?= Right (PostgresqlTypes.Float8.fromDouble 3.14),
-          -- Multiple params / multiple columns
-          testCase "multiple params and columns" $ do
-            conn <- getConn
-            let ps =
-                  contramap fst (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                    <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                cols =
-                  (,)
-                    <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-                    <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4, $2::int4"
-                ps
-                (PostgresqlCodecs.oneRow cols)
-                (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
-            result @?= Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20),
-          -- Nullable columns
-          testCase "nullable column non-null" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
-            result @?= Right (Just (PostgresqlTypes.Int4.fromInt32 42)),
-          testCase "nullable column null" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery conn "SELECT NULL::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
-            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
-          -- Nullable params
-          testCase "nullable param Nothing" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-                (Nothing :: Maybe PostgresqlTypes.Int4)
-            result @?= Right (Nothing :: Maybe PostgresqlTypes.Int4),
-          testCase "nullable param Just" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4"
-                (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-                (Just (PostgresqlTypes.Int4.fromInt32 42))
-            result @?= Right (Just (PostgresqlTypes.Int4.fromInt32 42)),
-          -- Arrays
-          testCase "array d1 nonNullable roundtrip" $ do
-            conn <- getConn
-            let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4[]"
-                (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
-                input
-            result @?= Right input,
-          testCase "array d1 nullable elements" $ do
-            conn <- getConn
-            let input = Vector.fromList [Just (PostgresqlTypes.Int4.fromInt32 1), Nothing, Just (PostgresqlTypes.Int4.fromInt32 3)]
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::int4[]"
-                (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
-                input
-            result @?= Right input,
-          -- Enum type
-          testCase "enum roundtrip" $ do
-            conn <- getConn
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::genre"
-                (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                Comedy
-            result @?= Right Comedy,
-          -- Composite type
-          testCase "composite roundtrip" $ do
-            conn <- getConn
-            let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
-            result <-
-              Adapter.execQuery
-                conn
-                "SELECT $1::composite_point"
-                (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-                (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-                pt
-            result @?= Right pt
-        ]
+  aroundAll (TestContainers.withContainers setupContainer) $ do
+    describe "Integration" $ do
+      -- Result kinds
+      it "rowsAffected" $ \conn -> do
+        _ <- PQ.exec conn "CREATE TEMP TABLE t_affected (x int4)"
+        result <-
+          Adapter.execQuery
+            conn
+            "INSERT INTO t_affected SELECT generate_series(1, 5)"
+            mempty
+            PostgresqlCodecs.rowsAffected
+            ()
+        result `shouldBe` Right 5
+      it "oneRow int4" $ \conn -> do
+        result <-
+          Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
+        result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
+      it "someRow with result" $ \conn -> do
+        result <-
+          Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)) ()
+        result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
+      it "someRow without result" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT 42::int4 WHERE false"
+            mempty
+            (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            ()
+        result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
+      it "manyRows" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
+            mempty
+            (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            ()
+        result `shouldBe` Right (Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3])
+      -- Scalar parameter roundtrips
+      it "param int4 roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            (PostgresqlTypes.Int4.fromInt32 42)
+        result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
+      it "param int8 roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int8"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            (PostgresqlTypes.Int8.fromInt64 9876543210)
+        result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
+      it "param text roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::text"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            ("hello" :: PostgresqlTypes.Text)
+        result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
+      it "param bool roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::bool"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            (PostgresqlTypes.Bool.fromBool True)
+        result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
+      it "param float8 roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::float8"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            (PostgresqlTypes.Float8.fromDouble 3.14)
+        result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
+      -- Multiple params / multiple columns
+      it "multiple params and columns" $ \conn -> do
+        let ps =
+              contramap fst (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+                <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            cols =
+              (,)
+                <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+                <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4, $2::int4"
+            ps
+            (PostgresqlCodecs.oneRow cols)
+            (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
+        result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
+      -- Nullable columns
+      it "nullable column non-null" $ \conn -> do
+        result <-
+          Adapter.execQuery conn "SELECT 42::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
+        result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
+      it "nullable column null" $ \conn -> do
+        result <-
+          Adapter.execQuery conn "SELECT NULL::int4" mempty (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)) ()
+        result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
+      -- Nullable params
+      it "nullable param Nothing" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+            (Nothing :: Maybe PostgresqlTypes.Int4)
+        result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
+      it "nullable param Just" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4"
+            (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+            (Just (PostgresqlTypes.Int4.fromInt32 42))
+        result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
+      -- Arrays
+      it "array d1 nonNullable roundtrip" $ \conn -> do
+        let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4[]"
+            (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+            input
+        result `shouldBe` Right input
+      it "array d1 nullable elements" $ \conn -> do
+        let input = Vector.fromList [Just (PostgresqlTypes.Int4.fromInt32 1), Nothing, Just (PostgresqlTypes.Int4.fromInt32 3)]
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::int4[]"
+            (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+            input
+        result `shouldBe` Right input
+      -- Enum type
+      it "enum roundtrip" $ \conn -> do
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::genre"
+            (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            Comedy
+        result `shouldBe` Right Comedy
+      -- Composite type
+      it "composite roundtrip" $ \conn -> do
+        let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
+        result <-
+          Adapter.execQuery
+            conn
+            "SELECT $1::composite_point"
+            (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            pt
+        result `shouldBe` Right pt
