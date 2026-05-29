@@ -44,31 +44,28 @@ instance Applicative RowDecoder where
       Right f -> fmap (fmap f) (rx res row colRef)
 
 instance BinaryDecoder RowDecoder where
-  decodeColumnInBinary peeker = RowDecoder $ \res row colRef -> do
+  consumeColumnInBinary onNull peeker = RowDecoder $ \res row colRef -> do
     colIdx <- readIORef colRef
     modifyIORef' colRef (+ 1)
     mBytes <- PQ.getvalue' res row (PQ.Col (fromIntegral colIdx))
-    -- Prefix the raw column bytes with a 4-byte signed length so the
-    -- Nullability wrappers (which expect [size][data]) work correctly.
-    let prefixedBytes = case mBytes of
-          Nothing -> Write.toByteString (Write.bInt32 (-1))
-          Just bytes ->
-            Write.toByteString (Write.bInt32 (fromIntegral (BS.length bytes))) <> bytes
-    case PtrPeeker.runVariableOnByteString peeker prefixedBytes of
-      Left offset ->
-        pure $
-          Left
-            DecodingError
-              { message = "Binary decoding failed",
-                details = "Ran out of input at byte offset " <> Text.pack (show offset),
-                row = Nothing,
-                column = Nothing,
-                inputLocation = ["column-binary"],
-                inputOffset = fromIntegral offset,
-                failingInput = "",
-                expectedInputs = Nothing
-              }
-      Right result -> pure result
+    case mBytes of
+      Nothing -> pure onNull
+      Just bytes ->
+        case PtrPeeker.runVariableOnByteString peeker bytes of
+          Left offset ->
+            pure $
+              Left
+                DecodingError
+                  { message = "Binary decoding failed",
+                    details = "Ran out of input at byte offset " <> Text.pack (show offset),
+                    row = Nothing,
+                    column = Nothing,
+                    inputLocation = ["column-binary"],
+                    inputOffset = fromIntegral offset,
+                    failingInput = "",
+                    expectedInputs = Nothing
+                  }
+          Right result -> pure result
 
 -- | Decode a single row from a libpq result, advancing through columns.
 decodeRow :: Columns row -> PQ.Result -> PQ.Row -> IO (Either Text row)
@@ -89,17 +86,16 @@ execQuery ::
   params ->
   IO (Either Text result)
 execQuery conn sql ps result input = do
-  let encodeParamsE =
-        traverse
-          ( \enc -> case enc input of
-              Left err -> Left (Text.pack (show err))
-              Right Nothing -> Right Nothing
-              Right (Just w) -> Right (Just (PQ.Oid 0, Write.toByteString w, PQ.Binary))
-          )
-          ps.binaryEncoder
-  case encodeParamsE of
-    Left e -> pure (Left e)
-    Right paramList -> do
+  case ps.binaryEncoder input of
+    Left err -> pure (Left (Text.pack (show err)))
+    Right writes -> do
+      let paramList =
+            zipWith
+              ( \oid mWrite ->
+                  fmap (\w -> (PQ.Oid (fromIntegral oid), Write.toByteString w, PQ.Binary)) mWrite
+              )
+              ps.oids
+              writes
       mPgResult <- PQ.execParams conn sql paramList PQ.Binary
       case mPgResult of
         Nothing -> do

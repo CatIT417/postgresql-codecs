@@ -8,28 +8,31 @@ import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Scalar
-import qualified PostgresqlTypes.Algebra
 import qualified PtrPeeker
 
 -- * Ports
 
--- | A driver-specific execution context.
 class (Applicative f) => BinaryDecoder f where
-  -- | Read the next column value.
-  decodeColumnInBinary :: PtrPeeker.Variable (Either DecodingError a) -> f a
+  consumeColumnInBinary ::
+    Either DecodingError a ->
+    PtrPeeker.Variable (Either DecodingError a) ->
+    f a
 
--- | A driver-specific execution context.
 class (Applicative f) => TextDecoder f where
-  -- | Read the next column value.
-  decodeColumnInText :: Atto.Parser a -> f a
+  consumeColumnInText ::
+    Either DecodingError a ->
+    Atto.Parser a ->
+    f a
 
 -- * Abstraction
 
 -- | Result set columns decoder.
 data Columns a = Columns
-  { -- | Expected number of columns in the result set. This is used to verify that the number of columns in the result set matches the expected number prior to attempting to decode the columns.
+  { -- | Expected number of columns in the result set.
     count :: Int32,
+    -- | Wire-format binary decoder.
     binaryDecoder :: forall f. (BinaryDecoder f) => f a,
+    -- | Wire-format text decoder.
     textDecoder :: forall f. (TextDecoder f) => f a
   }
 
@@ -59,21 +62,20 @@ instance Applicative Columns where
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
 column scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
+      binPeek = dimensionality.binaryDecoder baseOid scalar.binaryDecoder
+      txtParser = dimensionality.textualDecoder scalar.textualDecoder
+      runOnNonNull a =
+        case nullability.onNonNull a of
+          Right b -> b
+          Left _ -> error "onNonNull unexpectedly failed"
    in Columns
         { count = 1,
           binaryDecoder =
-            decodeColumnInBinary
-              ( nullability.binaryDecoderWrapper
-                  ( dimensionality.binaryDecoder
-                      baseOid
-                      scalar.binaryDecoder
-                  )
-              ),
+            consumeColumnInBinary
+              nullability.onNull
+              (fmap (>>= nullability.onNonNull) binPeek),
           textDecoder =
-            decodeColumnInText
-              ( nullability.textualDecoderWrapper
-                  ( dimensionality.textualDecoder
-                      scalar.textualDecoder
-                  )
-              )
+            consumeColumnInText
+              nullability.onNull
+              (fmap runOnNonNull txtParser)
         }

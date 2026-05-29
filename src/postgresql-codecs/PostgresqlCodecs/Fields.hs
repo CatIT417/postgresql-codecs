@@ -64,24 +64,36 @@ instance Profunctor Fields where
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
+      binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
+      txtEnc = dimensionality.textualEncoder scalar.textualEncoder
+      Nullability {encoder = enc} = nullability
    in Fields
         { count = 1,
-          binaryEncoder = \value -> do
-            fieldWrite <-
-              nullability.binaryEncoderWrapper
-                (dimensionality.binaryEncoder baseOid scalar.binaryEncoder)
-                value
-            Right (Write.bWord32 baseOid <> fieldWrite),
+          binaryEncoder = \value ->
+            let oid = Write.bInt32 (fromIntegral baseOid)
+             in enc
+                  (Right (oid <> Write.bInt32 (-1)))
+                  ( \a -> do
+                      write <- binEnc a
+                      let size = Write.bInt32 (fromIntegral (Write.writeSize write))
+                      Right (oid <> size <> write)
+                  )
+                  value,
           binaryDecoder = do
-            _ <- PtrPeeker.fixed PtrPeeker.beUnsignedInt4
-            nullability.binaryDecoderWrapper
-              (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
-          textualEncoder =
-            fmap pure
-              . nullability.textualEncoderWrapper
-                (dimensionality.textualEncoder scalar.textualEncoder),
+            contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
+            case contentSize of
+              -1 -> pure nullability.onNull
+              _ ->
+                fmap
+                  (>>= nullability.onNonNull)
+                  (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
+          textualEncoder = \value ->
+            enc
+              (Right [mempty])
+              (\a -> do text <- txtEnc a; Right [text])
+              value,
           textualDecoder =
-            fail "Textual composite field decoding is not implemented"
+            error "TODO: Implement decoding of a composite field. Take care about nesting"
         }
 
 composite :: Text -> Text -> Fields a a -> Scalar a
@@ -93,7 +105,7 @@ composite schemaName typeName fields =
       arrayOid = Nothing,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
-        Right (Write.bInt32 fields.count <> fieldWrites),
+        Right (Write.lInt32 fields.count <> fieldWrites),
       binaryDecoder =
         runExceptT do
           _ <-
@@ -117,5 +129,5 @@ composite schemaName typeName fields =
                             }
           ExceptT fields.binaryDecoder,
       textualEncoder = \_value -> error "TODO",
-      textualDecoder = fail "Textual decoding of composite types is not implemented"
+      textualDecoder = error "TODO"
     }
