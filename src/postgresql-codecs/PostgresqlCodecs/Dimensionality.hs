@@ -12,10 +12,7 @@ import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
 data Dimensionality scalar vec = Dimensionality
-  { -- | Select the OID to send as the parameter type when this dimensionality
-    -- is used in a query parameter.  Receives the scalar's base OID and array
-    -- OID and returns the appropriate one (base for @d0@, array for @d1@).
-    paramOid :: Maybe Word32 -> Maybe Word32 -> Maybe Word32,
+  { isArray :: Bool,
     binaryEncoder ::
       Word32 ->
       (scalar -> Either EncodingError Write.Write) ->
@@ -35,7 +32,7 @@ data Dimensionality scalar vec = Dimensionality
 d0 :: Dimensionality a a
 d0 =
   Dimensionality
-    { paramOid = \baseOid _arrayOid -> baseOid,
+    { isArray = False,
       binaryEncoder = const id,
       binaryDecoder = const id,
       textualEncoder = id,
@@ -46,7 +43,7 @@ d1 :: Nullability a b -> Dimension b c -> Dimensionality a c
 d1 elementNullability (Dimension construct1 destruct1 count1) =
   let Nullability {encoder = elementEncoder} = elementNullability
    in Dimensionality
-        { paramOid = \_baseOid arrayOid -> arrayOid,
+        { isArray = True,
           binaryEncoder =
             \baseOid scalarEncoder vec ->
               let head =

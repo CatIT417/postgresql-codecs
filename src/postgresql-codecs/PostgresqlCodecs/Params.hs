@@ -54,7 +54,7 @@ instance Monoid (Params a) where
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid
-      theParamOid = fromMaybe 0 (dimensionality.paramOid scalar.baseOid scalar.arrayOid)
+      theParamOid = fromMaybe 0 (if dimensionality.isArray then scalar.arrayOid else scalar.baseOid)
       binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
       txtEnc = dimensionality.textualEncoder scalar.textualEncoder
       Nullability {encoder = enc} = nullability
