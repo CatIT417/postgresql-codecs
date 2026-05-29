@@ -35,8 +35,8 @@ instance Applicative RowDecoder where
       Left e -> pure (Left e)
       Right f -> fmap (fmap f) (rx res row colRef)
 
-instance PostgresqlCodecs.BinaryDecoder RowDecoder where
-  consumeColumnInBinary onNull peeker = RowDecoder $ \res row colRef -> do
+instance PostgresqlCodecs.ConsumesColumns RowDecoder where
+  consumeColumn onNull peeker _parser = RowDecoder $ \res row colRef -> do
     colIdx <- readIORef colRef
     modifyIORef' colRef (+ 1)
     mBytes <- PQ.getvalue' res row (PQ.Col (fromIntegral colIdx))
@@ -61,7 +61,7 @@ instance PostgresqlCodecs.BinaryDecoder RowDecoder where
 
 -- | Decode a single row from a libpq result, advancing through columns.
 decodeRow :: PostgresqlCodecs.Columns row -> PQ.Result -> PQ.Row -> IO (Either Text row)
-decodeRow PostgresqlCodecs.Columns {binaryDecoder = rd} pgRes pgRow = do
+decodeRow PostgresqlCodecs.Columns {decoder = rd} pgRes pgRow = do
   colRef <- newIORef 0
   let RowDecoder run = rd
   result <- run pgRes pgRow colRef

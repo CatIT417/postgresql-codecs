@@ -104,6 +104,7 @@ composite schemaName typeName fields =
       typeName,
       baseOid = Nothing,
       arrayOid = Nothing,
+      supportsBinary = True,
       binaryEncoder = \value -> do
         fieldWrites <- fields.binaryEncoder value
         Right (Write.bInt32 fields.count <> fieldWrites),

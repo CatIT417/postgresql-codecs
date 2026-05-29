@@ -12,15 +12,10 @@ import qualified PtrPeeker
 
 -- * Ports
 
-class (Applicative f) => BinaryDecoder f where
-  consumeColumnInBinary ::
+class (Applicative f) => ConsumesColumns f where
+  consumeColumn ::
     Either DecodingError a ->
     PtrPeeker.Variable (Either DecodingError a) ->
-    f a
-
-class (Applicative f) => TextDecoder f where
-  consumeColumnInText ::
-    Either DecodingError a ->
     Atto.Parser a ->
     f a
 
@@ -30,33 +25,28 @@ class (Applicative f) => TextDecoder f where
 data Columns a = Columns
   { -- | Expected number of columns in the result set.
     count :: Int32,
-    -- | Wire-format binary decoder.
-    binaryDecoder :: forall f. (BinaryDecoder f) => f a,
-    -- | Wire-format text decoder.
-    textDecoder :: forall f. (TextDecoder f) => f a
+    -- | Wire-format decoder that supports both binary and text formats.
+    decoder :: forall f. (ConsumesColumns f) => f a
   }
 
 instance Functor Columns where
-  fmap f Columns {count = cnt, binaryDecoder = bd, textDecoder = td} =
+  fmap f Columns {count = cnt, decoder = dec} =
     Columns
       { count = cnt,
-        binaryDecoder = fmap f bd,
-        textDecoder = fmap f td
+        decoder = fmap f dec
       }
 
 instance Applicative Columns where
   pure x =
     Columns
       { count = 0,
-        binaryDecoder = pure x,
-        textDecoder = pure x
+        decoder = pure x
       }
-  Columns {count = cf, binaryDecoder = bdf, textDecoder = tdf}
-    <*> Columns {count = cx, binaryDecoder = bdx, textDecoder = tdx} =
+  Columns {count = cf, decoder = df}
+    <*> Columns {count = cx, decoder = dx} =
       Columns
         { count = cf + cx,
-          binaryDecoder = bdf <*> bdx,
-          textDecoder = tdf <*> tdx
+          decoder = df <*> dx
         }
 
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
@@ -67,12 +57,9 @@ column scalar dimensionality nullability =
       runOnNonNull = nullability.onNonNull
    in Columns
         { count = 1,
-          binaryDecoder =
-            consumeColumnInBinary
+          decoder =
+            consumeColumn
               nullability.onNull
-              (fmap (fmap nullability.onNonNull) binPeek),
-          textDecoder =
-            consumeColumnInText
-              nullability.onNull
+              (fmap (fmap nullability.onNonNull) binPeek)
               (fmap runOnNonNull txtParser)
         }

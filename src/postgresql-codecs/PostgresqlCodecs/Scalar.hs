@@ -30,6 +30,8 @@ data Scalar a = Scalar
     -- When unspecified, the OID may be determined at runtime by looking up by name.
     -- It may also mean that there may be no array type containing this type, which is the case in attempts to double-nest arrays.
     arrayOid :: Maybe Word32,
+    -- | Whether this scalar type supports binary encoding/decoding.
+    supportsBinary :: Bool,
     binaryEncoder :: a -> Either EncodingError Write.Write,
     binaryDecoder :: PtrPeeker.Variable (Either DecodingError a),
     -- | Represent in Postgres textual format.
@@ -93,6 +95,7 @@ native =
           typeName = untag (PostgresqlTypes.typeName @a),
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
+          supportsBinary = True,
           binaryEncoder = \a -> Right (PostgresqlTypes.binaryEncoder a),
           binaryDecoder = fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
           textualEncoder = \a -> Right (PostgresqlTypes.textualEncoder a),
@@ -189,6 +192,7 @@ enum schema tName variants =
           typeName = tName,
           baseOid = Nothing,
           arrayOid = Nothing,
+          supportsBinary = True,
           binaryEncoder = encoder,
           binaryDecoder = decoder,
           textualEncoder = textEncoder,
