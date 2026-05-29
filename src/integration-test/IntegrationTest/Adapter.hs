@@ -6,25 +6,24 @@ module IntegrationTest.Adapter
   )
 where
 
-import Prelude
 import Control.Monad (foldM)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
 import Data.IORef
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
 import qualified Database.PostgreSQL.LibPQ as PQ
 import PostgresqlCodecs
   ( BinaryDecoder (..),
     Columns (..),
     DecodingError (..),
-    EncodingError,
     Params (..),
     Result (..),
   )
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
+import Prelude
 
 -- | A libpq-based row decoder that threads through column index state.
 newtype RowDecoder a = RowDecoder
