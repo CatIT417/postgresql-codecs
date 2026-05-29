@@ -76,9 +76,14 @@ field scalar dimensionality nullability =
               Just write ->
                 let size = Write.bInt32 (fromIntegral (Write.writeSize write))
                  in Right (oid <> size <> write),
-          binaryDecoder =
-            nullability.binaryDecoderWrapper
-              (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
+          binaryDecoder = do
+            contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
+            case contentSize of
+              -1 -> pure nullability.onNull
+              _ ->
+                fmap
+                  (>>= nullability.onNonNull)
+                  (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
           textualEncoder = \value -> do
             mText <- nullability.textualEncoder txtEnc value
             case mText of

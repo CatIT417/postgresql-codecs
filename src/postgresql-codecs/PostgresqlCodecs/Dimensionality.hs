@@ -133,7 +133,11 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
 
           construct1 (fromIntegral size1) do
             ExceptT do
-              elementNullability.binaryDecoderWrapper scalarDecoder,
+              contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
+              case contentSize of
+                -1 -> pure elementNullability.onNull
+                _ ->
+                  fmap (>>= elementNullability.onNonNull) scalarDecoder,
       textualEncoder = \_scalarEncoder _vec ->
         error "TODO",
       textualDecoder = \_scalarDecoder ->
