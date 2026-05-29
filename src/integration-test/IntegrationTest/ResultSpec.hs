@@ -1,5 +1,6 @@
 module IntegrationTest.ResultSpec (spec) where
 
+import qualified Data.Pool as Pool
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
@@ -10,8 +11,8 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-spec :: SpecWith PQ.Connection
-spec = do
+spec :: SpecWith (Pool.Pool PQ.Connection)
+spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
   describe "Result" $ do
     it "rowsAffected on INSERT" $ \conn -> do
       _ <- PQ.exec conn "CREATE TEMP TABLE t_affected (x int4)"

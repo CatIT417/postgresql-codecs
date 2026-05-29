@@ -10,17 +10,21 @@ import qualified TestContainers.Hspec as TestContainers
 import qualified TestcontainersPostgresql as TcPg
 import Prelude
 
-type HookedSpec = SpecWith PQ.Connection
-
-pgConfig :: TcPg.Config
-pgConfig = TcPg.Config {tagName = "postgres:16", auth = TcPg.TrustAuth, forwardLogs = False}
+type HookedSpec = SpecWith (Pool.Pool PQ.Connection)
 
 setupContainer :: TestContainers.TestContainer (Pool.Pool PQ.Connection)
 setupContainer = do
-  (host, port) <- TcPg.setup pgConfig
+  (host, port) <-
+    TcPg.setup config
   pool <- liftIO $ Pool.newPool $ Pool.defaultPoolConfig (connect host port) PQ.finish 30 100
   pure pool
   where
+    config =
+      TcPg.Config
+        { tagName = "postgres:18",
+          auth = TcPg.TrustAuth,
+          forwardLogs = False
+        }
     connect host port = do
       let connStr =
             "host="
@@ -35,6 +39,6 @@ setupContainer = do
         _ -> fail "Failed to connect to PostgreSQL"
 
 hook :: HookedSpec -> Spec
-hook spec =
-  aroundAll (TestContainers.withContainers setupContainer) $
-    aroundWith (\connAction pool -> Pool.withResource pool connAction) spec
+hook =
+  aroundAll (TestContainers.withContainers setupContainer)
+    . parallel

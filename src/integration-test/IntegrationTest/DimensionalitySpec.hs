@@ -1,5 +1,6 @@
 module IntegrationTest.DimensionalitySpec (spec) where
 
+import qualified Data.Pool as Pool
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
@@ -10,8 +11,8 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-spec :: SpecWith PQ.Connection
-spec = do
+spec :: SpecWith (Pool.Pool PQ.Connection)
+spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
   describe "Dimensionality" $ do
     it "d1 non-nullable array roundtrip" $ \conn -> do
       let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]

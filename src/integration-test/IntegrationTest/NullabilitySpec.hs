@@ -1,5 +1,6 @@
 module IntegrationTest.NullabilitySpec (spec) where
 
+import qualified Data.Pool as Pool
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
@@ -8,8 +9,8 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-spec :: SpecWith PQ.Connection
-spec = do
+spec :: SpecWith (Pool.Pool PQ.Connection)
+spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
   describe "Nullability" $ do
     it "nullable column with non-null value" $ \conn -> do
       result <-

@@ -1,5 +1,6 @@
 module IntegrationTest.DimensionSpec (spec) where
 
+import qualified Data.Pool as Pool
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
@@ -10,8 +11,8 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
-spec :: SpecWith PQ.Connection
-spec = do
+spec :: SpecWith (Pool.Pool PQ.Connection)
+spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
   describe "Dimension" $ do
     it "vector of int8" $ \conn -> do
       let input = Vector.fromList [PostgresqlTypes.Int8.fromInt64 1, PostgresqlTypes.Int8.fromInt64 2]
