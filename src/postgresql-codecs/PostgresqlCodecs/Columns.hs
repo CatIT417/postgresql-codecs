@@ -21,7 +21,7 @@ class (Applicative f) => BinaryDecoder f where
 class (Applicative f) => TextDecoder f where
   consumeColumnInText ::
     Either DecodingError a ->
-    (Text -> Either DecodingError a) ->
+    Atto.Parser a ->
     f a
 
 -- * Abstraction
@@ -45,6 +45,10 @@ column scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
       binPeek = dimensionality.binaryDecoder baseOid scalar.binaryDecoder
       txtParser = dimensionality.textualDecoder scalar.textualDecoder
+      runOnNonNull a =
+        case nullability.onNonNull a of
+          Right b -> b
+          Left _ -> error "onNonNull unexpectedly failed"
    in Columns
         { count = 1,
           binaryDecoder =
@@ -52,19 +56,7 @@ column scalar dimensionality nullability =
               nullability.onNull
               (fmap (>>= nullability.onNonNull) binPeek),
           textDecoder =
-            consumeColumnInText nullability.onNull \text ->
-              case Atto.parseOnly txtParser text of
-                Left err ->
-                  Left
-                    DecodingError
-                      { message = fromString err,
-                        details = "",
-                        row = Nothing,
-                        column = Nothing,
-                        inputLocation = ["surface-text"],
-                        inputOffset = 0,
-                        failingInput = text,
-                        expectedInputs = Nothing
-                      }
-                Right val -> nullability.onNonNull val
+            consumeColumnInText
+              nullability.onNull
+              (fmap runOnNonNull txtParser)
         }
