@@ -20,6 +20,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
 
@@ -34,6 +35,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 10::int4, 20::int4"
           mempty
           (PostgresqlCodecs.oneRow cols)
+          True
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
 
@@ -49,5 +51,6 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4, 9876543210::int8, 'hello'::text"
           mempty
           (PostgresqlCodecs.oneRow cols)
+          True
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42, PostgresqlTypes.Int8.fromInt64 9876543210, "hello" :: PostgresqlTypes.Text)

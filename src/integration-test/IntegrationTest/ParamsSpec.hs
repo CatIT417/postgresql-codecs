@@ -23,6 +23,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           (PostgresqlTypes.Int4.fromInt32 42)
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
 
@@ -33,6 +34,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int8"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           (PostgresqlTypes.Int8.fromInt64 9876543210)
       result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
 
@@ -43,6 +45,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::text"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ("hello" :: PostgresqlTypes.Text)
       result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
 
@@ -53,6 +56,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::bool"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           (PostgresqlTypes.Bool.fromBool True)
       result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
 
@@ -63,6 +67,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::float8"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           (PostgresqlTypes.Float8.fromDouble 3.14)
       result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
 
@@ -80,5 +85,6 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4, $2::int4"
           ps
           (PostgresqlCodecs.oneRow cols)
+          True
           (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)

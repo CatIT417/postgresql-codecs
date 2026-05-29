@@ -22,6 +22,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "INSERT INTO t_affected SELECT generate_series(1, 5)"
           mempty
           PostgresqlCodecs.rowsAffected
+          True
           ()
       result `shouldBe` Right 5
 
@@ -32,6 +33,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
           mempty
           PostgresqlCodecs.rowsAffected
+          True
           ()
       result `shouldBe` Right 3
 
@@ -42,6 +44,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
 
@@ -52,6 +55,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4 WHERE false"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          True
           ()
       result `shouldBe` Left "Expected 1 row, got 0"
 
@@ -62,6 +66,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT * FROM unnest(ARRAY[1,2]::int4[])"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          True
           ()
       result `shouldBe` Left "Expected 1 row, got 2"
 
@@ -72,6 +77,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4"
           mempty
           (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
 
@@ -82,6 +88,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4 WHERE false"
           mempty
           (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
 
@@ -92,6 +99,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
           mempty
           (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3])
 
@@ -102,5 +110,6 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT * FROM unnest(ARRAY[]::int4[])"
           mempty
           (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          True
           ()
       result `shouldBe` Right (Vector.fromList [] :: Vector PostgresqlTypes.Int4)

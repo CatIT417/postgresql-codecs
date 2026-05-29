@@ -19,6 +19,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT 42::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          True
           ()
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
 
@@ -29,6 +30,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT NULL::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          True
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
 
@@ -39,6 +41,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT NULL::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          True
           ()
       result `shouldBe` Left "Unexpected null"
 
@@ -49,6 +52,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          True
           (Nothing :: Maybe PostgresqlTypes.Int4)
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
 
@@ -59,6 +63,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          True
           (Just (PostgresqlTypes.Int4.fromInt32 42))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
 
@@ -69,5 +74,6 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          True
           (Just (PostgresqlTypes.Int4.fromInt32 99))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 99))

@@ -88,6 +88,7 @@ spec = beforeAllWith setupTypes $
                 "SELECT $1::genre"
                 (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
                 (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+                True
                 Comedy
             result `shouldBe` Right Comedy
 
@@ -101,4 +102,5 @@ scalarRoundtrip conn scalar val pgType =
     ("SELECT $1::" <> pgType)
     (PostgresqlCodecs.param scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     (PostgresqlCodecs.oneRow (PostgresqlCodecs.column scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+    True
     val

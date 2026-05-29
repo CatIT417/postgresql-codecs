@@ -22,6 +22,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          True
           input
       result `shouldBe` Right input
 
@@ -33,6 +34,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          True
           input
       result `shouldBe` Right input
 
@@ -45,6 +47,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          True
           input
       result `shouldBe` Right input
 
@@ -56,5 +59,6 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           "SELECT $1::int4[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          True
           input
       result `shouldBe` Right input

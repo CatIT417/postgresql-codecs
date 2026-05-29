@@ -82,6 +82,7 @@ spec = beforeAllWith setupTypes $
               "SELECT $1::composite_point"
               (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
               (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+              True
               pt
           result `shouldBe` Right pt
 
@@ -94,6 +95,7 @@ spec = beforeAllWith setupTypes $
               "SELECT $1::composite_with_nullable"
               (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
               (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+              True
               val
           result `shouldBe` Right val
 
@@ -106,6 +108,7 @@ spec = beforeAllWith setupTypes $
               "SELECT $1::composite_with_nullable"
               (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
               (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+              True
               val
           result `shouldBe` Right val
 
@@ -116,6 +119,7 @@ spec = beforeAllWith setupTypes $
               "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
               mempty
               (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+              True
               ()
           result
             `shouldBe` Right

@@ -176,4 +176,5 @@ test-suite integration-test
     testcontainers >=0.5 && <0.7,
     testcontainers-postgresql,
     text >=1.2 && <3,
+    text-builder ^>=1.0.0.4,
     vector ^>=0.13,

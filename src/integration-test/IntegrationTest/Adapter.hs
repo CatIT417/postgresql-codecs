@@ -16,6 +16,7 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import qualified PostgresqlCodecs
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
+import qualified TextBuilder
 import Prelude
 
 -- | A libpq-based row decoder that threads through column index state.
@@ -75,19 +76,20 @@ execQuery ::
   BS.ByteString ->
   PostgresqlCodecs.Params params ->
   PostgresqlCodecs.Result result ->
+  Bool ->
   params ->
   IO (Either Text result)
-execQuery conn sql ps result input = do
-  case ps.binaryEncoder input of
+execQuery conn sql ps result isBinaryEncodingAllowed input = do
+  case parameterEncoder input of
     Left err -> pure (Left (Text.pack (show err)))
-    Right writes -> do
+    Right encodedValues -> do
       let paramList =
             zipWith
-              ( \oid mWrite ->
-                  fmap (\w -> (PQ.Oid (fromIntegral oid), Write.toByteString w, PQ.Binary)) mWrite
+              ( \oid mEncodedValue ->
+                  fmap (\encodedValue -> (PQ.Oid (fromIntegral oid), encodedValue, parameterFormat)) mEncodedValue
               )
               ps.oids
-              writes
+              encodedValues
       mPgResult <- PQ.execParams conn sql paramList PQ.Binary
       case mPgResult of
         Nothing -> do
@@ -156,3 +158,11 @@ execQuery conn sql ps result input = do
     queryError pgResult = do
       mErr <- PQ.resultErrorMessage pgResult
       pure $ Left $ maybe "Query failed" Text.Encoding.decodeUtf8 mErr
+    parameterEncoder =
+      if isBinaryEncodingAllowed
+        then fmap (fmap (fmap Write.toByteString)) . ps.binaryEncoder
+        else fmap (fmap (fmap (Text.Encoding.encodeUtf8 . TextBuilder.toText))) . ps.textualEncoder
+    parameterFormat =
+      if isBinaryEncodingAllowed
+        then PQ.Binary
+        else PQ.Text
