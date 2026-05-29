@@ -55,14 +55,14 @@ param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid
       binEnc =
-        nullability.binarySurfaceEncoder
+        nullability.binaryEncoder
           (dimensionality.binaryEncoder baseOid scalar.binaryEncoder)
       txtEnc =
-        nullability.textualSurfaceEncoder
+        nullability.textualEncoder
           (dimensionality.textualEncoder scalar.textualEncoder)
    in Params
         { count = 1,
           oids = [baseOid],
-          binaryEncoder = \c -> fmap (:[]) (binEnc c),
-          textualEncoder = \c -> fmap (:[]) (txtEnc c)
+          binaryEncoder = \c -> fmap (: []) (binEnc c),
+          textualEncoder = \c -> fmap (: []) (txtEnc c)
         }

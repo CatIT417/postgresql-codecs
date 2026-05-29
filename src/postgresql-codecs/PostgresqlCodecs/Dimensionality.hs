@@ -45,12 +45,16 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
           let head =
                 Writes.arrayHeader 1 elementNullability.nullable baseOid [count1 vec]
               elementEncoder =
-                elementNullability.binaryEncoderWrapper scalarEncoder
+                elementNullability.binaryEncoder scalarEncoder
               body =
                 destruct1
                   ( \accumulator element -> do
                       acc <- accumulator
-                      encoded <- elementEncoder element
+                      mEncoded <- elementEncoder element
+                      let encoded = case mEncoded of
+                            Nothing -> Write.bInt32 (-1)
+                            Just write ->
+                              Write.bInt32 (fromIntegral (Write.writeSize write)) <> write
                       Right (acc <> encoded)
                   )
                   (Right mempty)
