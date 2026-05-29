@@ -2,7 +2,7 @@ module IntegrationTest.DimensionSpec (spec) where
 
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (queryParams)
+import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
@@ -16,7 +16,7 @@ spec = do
     it "vector of int8" $ \conn -> do
       let input = Vector.fromList [PostgresqlTypes.Int8.fromInt64 1, PostgresqlTypes.Int8.fromInt64 2]
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::int8[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
@@ -28,7 +28,7 @@ spec = do
       pendingWith "Text array binary decoding reads beyond element boundary"
       let input = Vector.fromList ["hello" :: PostgresqlTypes.Text, "world"]
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::text[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
@@ -39,7 +39,7 @@ spec = do
     it "vector of bool" $ \conn -> do
       let input = Vector.fromList [PostgresqlTypes.Bool.fromBool True, PostgresqlTypes.Bool.fromBool False, PostgresqlTypes.Bool.fromBool True]
       result <-
-        queryParams
+        execQuery
           conn
           "SELECT $1::bool[]"
           (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)

@@ -3,7 +3,7 @@ module IntegrationTest.ScalarSpec (spec) where
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (queryParams)
+import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
@@ -74,7 +74,7 @@ spec = do
     describe "enum" $ do
       it "roundtrip" $ \conn -> do
         result <-
-          queryParams
+          execQuery
             conn
             "SELECT $1::genre"
             (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
@@ -87,7 +87,7 @@ spec = do
 
 scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either Text a)
 scalarRoundtrip conn scalar val pgType =
-  queryParams
+  execQuery
     conn
     ("SELECT $1::" <> pgType)
     (PostgresqlCodecs.param scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
