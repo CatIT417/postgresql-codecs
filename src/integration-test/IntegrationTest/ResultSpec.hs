@@ -6,6 +6,7 @@ import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
 import Test.Hspec
@@ -57,7 +58,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           True
           ()
-      result `shouldBe` Left "Expected 1 row, got 0"
+      result `shouldBe` Left ("Expected 1 row, got 0" :: Report.Report)
 
     it "oneRow errors on too many rows" $ \conn -> do
       result <-
@@ -68,7 +69,7 @@ spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           True
           ()
-      result `shouldBe` Left "Expected 1 row, got 2"
+      result `shouldBe` Left ("Expected 1 row, got 2" :: Report.Report)
 
     it "someRow returns Just when present" $ \conn -> do
       result <-

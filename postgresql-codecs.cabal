@@ -89,19 +89,19 @@ library
   hs-source-dirs: src/postgresql-codecs
   exposed-modules:
     PostgresqlCodecs
+    PostgresqlCodecs.DecodingError
+    PostgresqlCodecs.EncodingError
+    PostgresqlCodecs.Report
 
   other-modules:
     PostgresqlCodecs.Columns
-    PostgresqlCodecs.DecodingError
     PostgresqlCodecs.Dimension
     PostgresqlCodecs.Dimensionality
     PostgresqlCodecs.Dimensionality.Writes
-    PostgresqlCodecs.EncodingError
     PostgresqlCodecs.Fields
     PostgresqlCodecs.Nullability
     PostgresqlCodecs.Params
     PostgresqlCodecs.Prelude
-    PostgresqlCodecs.Report
     PostgresqlCodecs.Result
     PostgresqlCodecs.Scalar
 

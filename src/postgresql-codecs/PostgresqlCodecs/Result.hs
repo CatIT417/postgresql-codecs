@@ -3,11 +3,12 @@ module PostgresqlCodecs.Result where
 import qualified Data.Vector.Generic as GenVec
 import PostgresqlCodecs.Columns
 import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Report
 import qualified VectorExtras.Accumulator as VecAcc
 
 -- | Result decoder.
 data Result a
-  = RowsAffected (Int -> Either Text a)
+  = RowsAffected (Int -> Either Report a)
   | forall row. MaybeRow
       (Columns row)
       -- | When the query returns no rows, this value is returned.
@@ -21,9 +22,9 @@ data Result a
       -- | Initial accumulator value.
       acc
       -- | Row folding function.
-      (acc -> row -> Either Text acc)
+      (acc -> row -> Either Report acc)
       -- | Finalizer function.
-      (acc -> Either Text a)
+      (acc -> Either Report a)
 
 someRow :: Columns row -> Result (Maybe row)
 someRow columnsDecoder =

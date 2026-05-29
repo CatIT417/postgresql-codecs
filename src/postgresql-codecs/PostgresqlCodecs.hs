@@ -1,7 +1,13 @@
 module PostgresqlCodecs
-  ( -- * Errors
-    DecodingError (..),
-    EncodingError (..),
+  ( -- * Report
+    Report (..),
+    toText,
+    fromModel,
+    suggest,
+    addDetail,
+    addDetailWithKey,
+    IsReport (..),
+    IsDetail (..),
 
     -- * Parameter
     Params (..),
@@ -50,13 +56,12 @@ module PostgresqlCodecs
 where
 
 import PostgresqlCodecs.Columns
-import PostgresqlCodecs.DecodingError
 import PostgresqlCodecs.Dimension
 import PostgresqlCodecs.Dimensionality
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Fields
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params
+import PostgresqlCodecs.Report
 import PostgresqlCodecs.Result
 import PostgresqlCodecs.Scalar
 import PostgresqlTypes

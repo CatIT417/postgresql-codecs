@@ -2,10 +2,10 @@ module IntegrationTest.ScalarSpec (spec) where
 
 import qualified Data.ByteString as BS
 import qualified Data.Pool as Pool
-import Data.Text (Text)
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
@@ -95,7 +95,7 @@ spec = beforeAllWith setupTypes $
 -- ---------------------------------------------------------------------------
 -- Helper
 
-scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either Text a)
+scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either Report.Report a)
 scalarRoundtrip conn scalar val pgType =
   execQuery
     conn
