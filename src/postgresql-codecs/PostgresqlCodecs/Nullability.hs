@@ -1,21 +1,13 @@
 module PostgresqlCodecs.Nullability where
 
 import PostgresqlCodecs.DecodingError
-import PostgresqlCodecs.EncodingError
 import PostgresqlCodecs.Prelude
-import qualified PtrPoker.Write as Write
-import qualified TextBuilder
 
 data Nullability a b = Nullability
   { nullable :: Bool,
     onNull :: Either DecodingError b,
     onNonNull :: a -> Either DecodingError b,
-    binaryEncoder ::
-      (a -> Either EncodingError Write.Write) ->
-      (b -> Either EncodingError (Maybe Write.Write)),
-    textualEncoder ::
-      (a -> Either EncodingError TextBuilder.TextBuilder) ->
-      (b -> Either EncodingError (Maybe TextBuilder.TextBuilder))
+    encoder :: forall c. (a -> c) -> (b -> Maybe c)
   }
 
 nullable :: Nullability a (Maybe a)
@@ -24,15 +16,10 @@ nullable =
     True
     (Right Nothing)
     (\x -> Right (Just x))
-    ( \contentEncoder ->
+    ( \pack ->
         \case
-          Just x -> fmap Just (contentEncoder x)
-          Nothing -> Right Nothing
-    )
-    ( \contentEncoder ->
-        \case
-          Just x -> fmap Just (contentEncoder x)
-          Nothing -> Right Nothing
+          Just x -> Just (pack x)
+          Nothing -> Nothing
     )
 
 nonNullable :: Nullability a a
@@ -41,9 +28,6 @@ nonNullable =
     False
     (Left "Unexpected null")
     Right
-    ( \contentEncoder ->
-        \x -> fmap Just (contentEncoder x)
-    )
-    ( \contentEncoder ->
-        \x -> fmap Just (contentEncoder x)
+    ( \pack ->
+        \x -> Just (pack x)
     )

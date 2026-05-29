@@ -66,10 +66,11 @@ field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
       binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
       txtEnc = dimensionality.textualEncoder scalar.textualEncoder
+      Nullability {encoder = enc} = nullability
    in Fields
         { count = 1,
           binaryEncoder = \value -> do
-            mWrite <- nullability.binaryEncoder binEnc value
+            mWrite <- sequenceA (enc binEnc value)
             let oid = Write.bInt32 (fromIntegral baseOid)
             case mWrite of
               Nothing -> Right (oid <> Write.bInt32 (-1))
@@ -85,7 +86,7 @@ field scalar dimensionality nullability =
                   (>>= nullability.onNonNull)
                   (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
           textualEncoder = \value -> do
-            mText <- nullability.textualEncoder txtEnc value
+            mText <- sequenceA (enc txtEnc value)
             case mText of
               Nothing -> Right [mempty]
               Just text -> Right [text],
