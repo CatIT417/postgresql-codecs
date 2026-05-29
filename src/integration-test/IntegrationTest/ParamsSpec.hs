@@ -2,7 +2,7 @@ module IntegrationTest.ParamsSpec (spec) where
 
 import Data.Functor.Contravariant
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (query, queryParams)
+import IntegrationTest.Adapter (queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool

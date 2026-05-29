@@ -3,7 +3,7 @@ module IntegrationTest.DimensionalitySpec (spec) where
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (query, queryParams)
+import IntegrationTest.Adapter (queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4

@@ -3,7 +3,7 @@ module IntegrationTest.ScalarSpec (spec) where
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (query, queryParams)
+import IntegrationTest.Adapter (queryParams)
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
