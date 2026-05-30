@@ -1,8 +1,8 @@
 module IntegrationTest.NullabilitySpec (spec) where
 
 import qualified Data.Pool as Pool
-import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
+import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
@@ -10,71 +10,71 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-spec :: SpecWith (Pool.Pool PQ.Connection)
-spec = aroundWith (\action pool -> Pool.withResource pool action) $ do
+spec :: SpecHook.HookedSpec
+spec = do
   describe "Nullability" $ do
-    it "nullable column with non-null value" $ \conn -> do
-      result <-
+    it "nullable column with non-null value" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT 42::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-          True
+          env.binary
           ()
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
 
-    it "nullable column with null" $ \conn -> do
-      result <-
+    it "nullable column with null" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT NULL::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-          True
+          env.binary
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
 
-    it "non-nullable column rejects null" $ \conn -> do
-      result <-
+    it "non-nullable column rejects null" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT NULL::int4"
           mempty
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
-          True
+          env.binary
           ()
       result `shouldBe` Left ("Unexpected null" :: Report.Report)
 
-    it "nullable param with Nothing" $ \conn -> do
-      result <-
+    it "nullable param with Nothing" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-          True
+          env.binary
           (Nothing :: Maybe PostgresqlTypes.Int4)
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
 
-    it "nullable param with Just" $ \conn -> do
-      result <-
+    it "nullable param with Just" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-          True
+          env.binary
           (Just (PostgresqlTypes.Int4.fromInt32 42))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
 
-    it "nullable param roundtrip through nullable column" $ \conn -> do
-      result <-
+    it "nullable param roundtrip through nullable column" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
           "SELECT $1::int4"
           (PostgresqlCodecs.param PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
-          True
+          env.binary
           (Just (PostgresqlTypes.Int4.fromInt32 99))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 99))

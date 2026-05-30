@@ -2,11 +2,11 @@
 
 module IntegrationTest.FieldsSpec (spec) where
 
-import Data.Pool (Pool)
 import qualified Data.Pool as Pool
 import Data.Profunctor
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
+import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
@@ -58,72 +58,71 @@ compositeWithNullableScalar =
         <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
     )
 
-setupTypes :: Pool PQ.Connection -> IO (Pool PQ.Connection)
-setupTypes pool = do
-  Pool.withResource pool $ \conn -> do
+setupTypes :: SpecHook.Env -> IO SpecHook.Env
+setupTypes env = do
+  Pool.withResource env.pool $ \conn -> do
     _ <- PQ.exec conn "DROP TYPE IF EXISTS composite_with_nullable CASCADE"
     _ <- PQ.exec conn "CREATE TYPE composite_with_nullable AS (x int4, y int4)"
     _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
     _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
     pure ()
-  pure pool
+  pure env
 
-spec :: SpecWith (Pool PQ.Connection)
+spec :: SpecHook.HookedSpec
 spec = beforeAllWith setupTypes $
-  aroundWith (\action pool -> Pool.withResource pool action) $
-    do
-      describe "Fields" $ do
-        it "composite roundtrip" $ \conn -> do
-          pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
-          let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
-          result <-
-            execQuery
-              conn
-              "SELECT $1::composite_point"
-              (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-              True
-              pt
-          result `shouldBe` Right pt
+  do
+    describe "Fields" $ do
+      it "composite roundtrip" $ \env -> do
+        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
+        let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
+        result <- Pool.withResource env.pool $ \conn ->
+          execQuery
+            conn
+            "SELECT $1::composite_point"
+            (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            env.binary
+            pt
+        result `shouldBe` Right pt
 
-        it "composite with nullable field non-null" $ \conn -> do
-          pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
-          let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Just (PostgresqlTypes.Int4.fromInt32 2)}
-          result <-
-            execQuery
-              conn
-              "SELECT $1::composite_with_nullable"
-              (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-              True
-              val
-          result `shouldBe` Right val
+      it "composite with nullable field non-null" $ \env -> do
+        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
+        let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Just (PostgresqlTypes.Int4.fromInt32 2)}
+        result <- Pool.withResource env.pool $ \conn ->
+          execQuery
+            conn
+            "SELECT $1::composite_with_nullable"
+            (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            env.binary
+            val
+        result `shouldBe` Right val
 
-        it "composite with nullable field null" $ \conn -> do
-          pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
-          let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Nothing}
-          result <-
-            execQuery
-              conn
-              "SELECT $1::composite_with_nullable"
-              (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-              True
-              val
-          result `shouldBe` Right val
+      it "composite with nullable field null" $ \env -> do
+        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
+        let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Nothing}
+        result <- Pool.withResource env.pool $ \conn ->
+          execQuery
+            conn
+            "SELECT $1::composite_with_nullable"
+            (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            env.binary
+            val
+        result `shouldBe` Right val
 
-        it "nested composite decode" $ \conn -> do
-          result <-
-            execQuery
-              conn
-              "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
-              mempty
-              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-              True
-              ()
-          result
-            `shouldBe` Right
-              CompositeContainer
-                { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
-                  containerLabel = "hello, world"
-                }
+      it "nested composite decode" $ \env -> do
+        result <- Pool.withResource env.pool $ \conn ->
+          execQuery
+            conn
+            "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
+            mempty
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            env.binary
+            ()
+        result
+          `shouldBe` Right
+            CompositeContainer
+              { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
+                containerLabel = "hello, world"
+              }
