@@ -28,6 +28,10 @@ module PostgresqlCodecs
     d0,
     d1,
     d2,
+    d3,
+    d4,
+    d5,
+    d6,
 
     -- ** Dimension
     Dimension,
@@ -54,7 +58,7 @@ import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Fields
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params
-import PostgresqlCodecs.Report (Report(..))
+import PostgresqlCodecs.Report (Report (..))
 import PostgresqlCodecs.Result
 import PostgresqlCodecs.Scalar
 import PostgresqlTypes

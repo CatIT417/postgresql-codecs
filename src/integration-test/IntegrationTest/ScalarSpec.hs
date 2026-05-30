@@ -6,7 +6,6 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
-import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
@@ -148,7 +147,7 @@ spec = beforeAllWith setupTypes $ do
 -- ---------------------------------------------------------------------------
 -- Helper
 
-scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> Bool -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either Report.Report a)
+scalarRoundtrip :: (Eq a, Show a) => PQ.Connection -> Bool -> PostgresqlCodecs.Scalar a -> a -> BS.ByteString -> IO (Either PostgresqlCodecs.Report a)
 scalarRoundtrip conn isBinary scalar val pgType =
   execQuery
     conn

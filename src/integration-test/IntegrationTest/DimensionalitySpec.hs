@@ -29,6 +29,83 @@ spec = do
           input
       result `shouldBe` Right input
 
+    it "d2 non-nullable array roundtrip" $ \env -> do
+      let input =
+            Vector.fromList
+              [ Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2],
+                Vector.fromList [PostgresqlTypes.Int4.fromInt32 3, PostgresqlTypes.Int4.fromInt32 4]
+              ]
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4[][]"
+          (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          env.binary
+          input
+      result `shouldBe` Right input
+
+    it "d3 non-nullable array roundtrip" $ \env -> do
+      let input =
+            Vector.fromList
+              [ Vector.fromList [Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2]],
+                Vector.fromList [Vector.fromList [PostgresqlTypes.Int4.fromInt32 3, PostgresqlTypes.Int4.fromInt32 4]]
+              ]
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4[][][]"
+          (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          env.binary
+          input
+      result `shouldBe` Right input
+
+    it "d4 non-nullable array roundtrip" $ \env -> do
+      let input =
+            Vector.fromList
+              [ Vector.fromList [Vector.fromList [Vector.fromList [PostgresqlTypes.Int4.fromInt32 9, PostgresqlTypes.Int4.fromInt32 10]]]
+              ]
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4[][][][]"
+          (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          env.binary
+          input
+      result `shouldBe` Right input
+
+    it "d5 non-nullable array roundtrip" $ \env -> do
+      let input =
+            Vector.fromList
+              [ Vector.fromList [Vector.fromList [Vector.fromList [Vector.fromList [PostgresqlTypes.Int4.fromInt32 11, PostgresqlTypes.Int4.fromInt32 12]]]]
+              ]
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4[][][][][]"
+          (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          env.binary
+          input
+      result `shouldBe` Right input
+
+    it "d6 non-nullable array roundtrip" $ \env -> do
+      let input =
+            Vector.fromList
+              [ Vector.fromList [Vector.fromList [Vector.fromList [Vector.fromList [Vector.fromList [PostgresqlTypes.Int4.fromInt32 13, PostgresqlTypes.Int4.fromInt32 14]]]]]
+              ]
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4[][][][][][]"
+          (PostgresqlCodecs.param PostgresqlCodecs.native (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          env.binary
+          input
+      result `shouldBe` Right input
+
     it "d1 nullable elements array roundtrip" $ \env -> do
       if not env.binary
         then pendingWith "Text array encoding/decoding in Dimensionality is TODO"

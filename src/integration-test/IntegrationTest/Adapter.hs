@@ -14,7 +14,6 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Database.PostgreSQL.LibPQ as PQ
 import qualified PostgresqlCodecs
-import qualified PostgresqlCodecs.Report as Report
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
@@ -23,7 +22,7 @@ import Prelude
 -- | A libpq-based row decoder that threads through column index state.
 newtype RowDecoder a
   = RowDecoder
-      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either Report.Report a))
+      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either PostgresqlCodecs.Report a))
 
 instance Functor RowDecoder where
   fmap f (RowDecoder run) = RowDecoder $ \res row colRef ->
@@ -49,7 +48,7 @@ instance PostgresqlCodecs.ConsumesColumns RowDecoder where
           Left offset ->
             pure $
               Left
-                Report.Report
+                PostgresqlCodecs.Report
                   { message = "Binary decoding failed",
                     suggestion = "",
                     details =
@@ -62,7 +61,7 @@ instance PostgresqlCodecs.ConsumesColumns RowDecoder where
           Right result -> pure result
 
 -- | Decode a single row from a libpq result, advancing through columns.
-decodeRow :: PostgresqlCodecs.Columns row -> PQ.Result -> PQ.Row -> IO (Either Report.Report row)
+decodeRow :: PostgresqlCodecs.Columns row -> PQ.Result -> PQ.Row -> IO (Either PostgresqlCodecs.Report row)
 decodeRow PostgresqlCodecs.Columns {decoder = rd} pgRes pgRow = do
   colRef <- newIORef 0
   let RowDecoder run = rd
@@ -76,7 +75,7 @@ execQuery ::
   PostgresqlCodecs.Result result ->
   Bool ->
   params ->
-  IO (Either Report.Report result)
+  IO (Either PostgresqlCodecs.Report result)
 execQuery conn sql ps result isBinaryEncodingAllowed input = do
   case parameterEncoder input of
     Left err -> pure (Left err)

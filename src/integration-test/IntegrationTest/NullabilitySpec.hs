@@ -4,7 +4,6 @@ import qualified Data.Pool as Pool
 import IntegrationTest.Adapter (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
-import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
 import Test.Hspec
@@ -44,7 +43,7 @@ spec = do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
-      result `shouldBe` Left ("Unexpected null" :: Report.Report)
+      result `shouldBe` Left ("Unexpected null" :: PostgresqlCodecs.Report)
 
     it "nullable param with Nothing" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->

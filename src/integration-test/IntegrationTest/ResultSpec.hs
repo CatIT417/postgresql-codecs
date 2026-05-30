@@ -7,7 +7,6 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Adapter (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
-import qualified PostgresqlCodecs.Report as Report
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
 import Test.Hspec
@@ -59,7 +58,7 @@ spec = do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
-      result `shouldBe` Left ("Expected 1 row, got 0" :: Report.Report)
+      result `shouldBe` Left ("Expected 1 row, got 0" :: PostgresqlCodecs.Report)
 
     it "oneRow errors on too many rows" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
@@ -70,7 +69,7 @@ spec = do
           (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
-      result `shouldBe` Left ("Expected 1 row, got 2" :: Report.Report)
+      result `shouldBe` Left ("Expected 1 row, got 2" :: PostgresqlCodecs.Report)
 
     it "someRow returns Just when present" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
