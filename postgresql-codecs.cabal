@@ -89,7 +89,6 @@ library
   hs-source-dirs: src/postgresql-codecs
   exposed-modules:
     PostgresqlCodecs
-    PostgresqlCodecs.Report
 
   other-modules:
     PostgresqlCodecs.Columns
@@ -100,6 +99,7 @@ library
     PostgresqlCodecs.Nullability
     PostgresqlCodecs.Params
     PostgresqlCodecs.Prelude
+    PostgresqlCodecs.Report
     PostgresqlCodecs.Result
     PostgresqlCodecs.Scalar
 

@@ -1,13 +1,6 @@
 module PostgresqlCodecs
   ( -- * Report
     Report (..),
-    toText,
-    fromModel,
-    suggest,
-    addDetail,
-    addDetailWithKey,
-    IsReport (..),
-    IsDetail (..),
 
     -- * Parameter
     Params (..),
@@ -61,7 +54,7 @@ import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Fields
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params
-import PostgresqlCodecs.Report
+import PostgresqlCodecs.Report (Report(..))
 import PostgresqlCodecs.Result
 import PostgresqlCodecs.Scalar
 import PostgresqlTypes
