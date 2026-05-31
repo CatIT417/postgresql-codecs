@@ -507,7 +507,7 @@ decodeElement elementNullability scalarDecoder = ExceptT do
   contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
   case contentSize of
     -1 -> pure elementNullability.onNull
-    _ -> fmap (fmap elementNullability.onNonNull) scalarDecoder
+    _ -> fmap (fmap elementNullability.onNonNull) (PtrPeeker.forceSize (fromIntegral contentSize) scalarDecoder)
 
 decode1 ::
   Nullability a b ->

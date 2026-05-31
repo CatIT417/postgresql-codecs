@@ -94,7 +94,7 @@ field scalar dimensionality nullability =
               _ ->
                 fmap
                   (fmap nullability.onNonNull)
-                  (dimensionality.binaryDecoder baseOid scalar.binaryDecoder),
+                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder baseOid scalar.binaryDecoder)),
           textualEncoder = \value ->
             enc
               (Right [mempty])

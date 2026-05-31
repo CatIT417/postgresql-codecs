@@ -27,7 +27,6 @@ spec = do
       result `shouldBe` Right input
 
     it "vector of text" $ \env -> do
-      pendingWith "Text array binary decoding reads beyond element boundary"
       let input = Vector.fromList ["hello" :: PostgresqlTypes.Text, "world"]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
