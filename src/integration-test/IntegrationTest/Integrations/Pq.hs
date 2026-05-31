@@ -1,18 +1,16 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
-module IntegrationTest.Adapter
+module IntegrationTest.Integrations.Pq
   ( execQuery,
   )
 where
 
 import Control.Monad (foldM)
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import Data.IORef
 import Data.String (fromString)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import qualified Database.PostgreSQL.LibPQ as PQ
+import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified PostgresqlCodecs
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -22,7 +20,7 @@ import Prelude
 -- | A libpq-based row decoder that threads through column index state.
 newtype RowDecoder a
   = RowDecoder
-      (PQ.Result -> PQ.Row -> IORef Int -> IO (Either PostgresqlCodecs.Report a))
+      (Pq.Result -> Pq.Row -> IORef Int -> IO (Either PostgresqlCodecs.Report a))
 
 instance Functor RowDecoder where
   fmap f (RowDecoder run) = RowDecoder $ \res row colRef ->
@@ -40,7 +38,7 @@ instance PostgresqlCodecs.ConsumesColumns RowDecoder where
   consumeColumn onNull peeker _parser = RowDecoder $ \res row colRef -> do
     colIdx <- readIORef colRef
     modifyIORef' colRef (+ 1)
-    mBytes <- PQ.getvalue' res row (PQ.Col (fromIntegral colIdx))
+    mBytes <- Pq.getvalue' res row (Pq.Col (fromIntegral colIdx))
     case mBytes of
       Nothing -> pure onNull
       Just bytes ->
@@ -61,7 +59,7 @@ instance PostgresqlCodecs.ConsumesColumns RowDecoder where
           Right result -> pure result
 
 -- | Decode a single row from a libpq result, advancing through columns.
-decodeRow :: PostgresqlCodecs.Columns row -> PQ.Result -> PQ.Row -> IO (Either PostgresqlCodecs.Report row)
+decodeRow :: PostgresqlCodecs.Columns row -> Pq.Result -> Pq.Row -> IO (Either PostgresqlCodecs.Report row)
 decodeRow PostgresqlCodecs.Columns {decoder = rd} pgRes pgRow = do
   colRef <- newIORef 0
   let RowDecoder run = rd
@@ -69,8 +67,8 @@ decodeRow PostgresqlCodecs.Columns {decoder = rd} pgRes pgRow = do
 
 -- | Execute a parameterised query and decode the result.
 execQuery ::
-  PQ.Connection ->
-  BS.ByteString ->
+  Pq.Connection ->
+  ByteString.ByteString ->
   PostgresqlCodecs.Params params ->
   PostgresqlCodecs.Result result ->
   Bool ->
@@ -83,61 +81,61 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
       let paramList =
             zipWith
               ( \oid mEncodedValue ->
-                  fmap (\encodedValue -> (PQ.Oid (fromIntegral oid), encodedValue, parameterFormat)) mEncodedValue
+                  fmap (\encodedValue -> (Pq.Oid (fromIntegral oid), encodedValue, parameterFormat)) mEncodedValue
               )
               ps.oids
               encodedValues
-      mPgResult <- PQ.execParams conn sql paramList PQ.Binary
+      mPgResult <- Pq.execParams conn sql paramList Pq.Binary
       case mPgResult of
         Nothing -> do
-          mErr <- PQ.errorMessage conn
+          mErr <- Pq.errorMessage conn
           pure $ Left $ maybe (fromString "execParams returned Nothing") (fromString . Text.unpack . Text.Encoding.decodeUtf8) mErr
         Just pgResult -> do
-          status <- PQ.resultStatus pgResult
+          status <- Pq.resultStatus pgResult
           handleResult pgResult status result
   where
     handleResult pgResult status theResult = case theResult of
       PostgresqlCodecs.RowsAffected toResult ->
         case status of
-          PQ.CommandOk -> do
-            mBS <- PQ.cmdTuples pgResult
+          Pq.CommandOk -> do
+            mBS <- Pq.cmdTuples pgResult
             let countStr = maybe "0" id mBS
-            case BS8.readInt countStr of
+            case ByteString.Char8.readInt countStr of
               Just (n, _) -> pure (toResult n)
               Nothing ->
                 pure (Left (fromString ("Invalid row count: " <> Text.unpack (Text.Encoding.decodeUtf8 countStr))))
-          PQ.TuplesOk -> do
-            nrows <- PQ.ntuples pgResult
-            let PQ.Row nCI = nrows
+          Pq.TuplesOk -> do
+            nrows <- Pq.ntuples pgResult
+            let Pq.Row nCI = nrows
             pure (toResult (fromIntegral nCI))
           _ -> queryError pgResult
       PostgresqlCodecs.MaybeRow cols noRow toRow ->
         case status of
-          PQ.TuplesOk -> do
-            nrows <- PQ.ntuples pgResult
+          Pq.TuplesOk -> do
+            nrows <- Pq.ntuples pgResult
             if nrows == 0
               then pure (Right noRow)
-              else fmap (fmap toRow) (decodeRow cols pgResult (PQ.Row 0))
+              else fmap (fmap toRow) (decodeRow cols pgResult (Pq.Row 0))
           _ -> queryError pgResult
       PostgresqlCodecs.OneRow cols ->
         case status of
-          PQ.TuplesOk -> do
-            nrows <- PQ.ntuples pgResult
+          Pq.TuplesOk -> do
+            nrows <- Pq.ntuples pgResult
             if nrows /= 1
               then
                 pure $
                   Left $
                     fromString
                       ( "Expected 1 row, got "
-                          <> show (let PQ.Row nCI = nrows in fromIntegral nCI :: Int)
+                          <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
                       )
-              else decodeRow cols pgResult (PQ.Row 0)
+              else decodeRow cols pgResult (Pq.Row 0)
           _ -> queryError pgResult
       PostgresqlCodecs.ManyRows cols initAcc foldRow fin ->
         case status of
-          PQ.TuplesOk -> do
-            nrows <- PQ.ntuples pgResult
-            let rows = [PQ.Row 0 .. nrows - 1]
+          Pq.TuplesOk -> do
+            nrows <- Pq.ntuples pgResult
+            let rows = [Pq.Row 0 .. nrows - 1]
             foldResult <-
               foldM
                 ( \accE rowIdx -> case accE of
@@ -156,7 +154,7 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
           _ -> queryError pgResult
 
     queryError pgResult = do
-      mErr <- PQ.resultErrorMessage pgResult
+      mErr <- Pq.resultErrorMessage pgResult
       pure $ Left $ maybe (fromString "Query failed") (fromString . Text.unpack . Text.Encoding.decodeUtf8) mErr
     parameterEncoder =
       if isBinaryEncodingAllowed
@@ -164,5 +162,5 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
         else fmap (fmap (fmap (Text.Encoding.encodeUtf8 . TextBuilder.toText))) . ps.textualEncoder
     parameterFormat =
       if isBinaryEncodingAllowed
-        then PQ.Binary
-        else PQ.Text
+        then Pq.Binary
+        else Pq.Text

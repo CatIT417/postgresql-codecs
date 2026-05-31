@@ -1,11 +1,9 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 module IntegrationTest.FieldsSpec (spec) where
 
 import qualified Data.Pool as Pool
 import Data.Profunctor
 import qualified Database.PostgreSQL.LibPQ as PQ
-import IntegrationTest.Adapter (execQuery)
+import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes

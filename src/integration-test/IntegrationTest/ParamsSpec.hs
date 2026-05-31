@@ -2,7 +2,7 @@ module IntegrationTest.ParamsSpec (spec) where
 
 import Data.Functor.Contravariant
 import qualified Data.Pool as Pool
-import IntegrationTest.Adapter (execQuery)
+import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes

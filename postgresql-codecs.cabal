@@ -12,6 +12,7 @@ description:
   (full result-set strategy). Both the binary and textual PostgreSQL wire
   formats are supported. Driver integration requires only a small
   ConsumesColumns instance; the library ships no I\/O of its own.
+
 homepage: https://github.com/nikita-volkov/postgresql-codecs
 bug-reports: https://github.com/nikita-volkov/postgresql-codecs/issues
 author: Nikita Volkov <nikita.y.volkov@mail.ru>
@@ -154,11 +155,11 @@ test-suite integration-test
   hs-source-dirs: src/integration-test
   main-is: Spec.hs
   other-modules:
-    IntegrationTest.Adapter
     IntegrationTest.ColumnsSpec
     IntegrationTest.DimensionalitySpec
     IntegrationTest.DimensionSpec
     IntegrationTest.FieldsSpec
+    IntegrationTest.Integrations.Pq
     IntegrationTest.NullabilitySpec
     IntegrationTest.ParamsSpec
     IntegrationTest.ResultSpec
