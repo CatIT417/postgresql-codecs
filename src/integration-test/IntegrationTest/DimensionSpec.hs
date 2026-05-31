@@ -15,9 +15,6 @@ spec :: SpecHook.HookedSpec
 spec = do
   describe "Dimension" $ do
     it "vector of int8" $ \env -> do
-      if not env.binary
-        then pendingWith "Text array encoding/decoding in Dimensionality is TODO"
-        else pure ()
       let input = Vector.fromList [PostgresqlTypes.Int8.fromInt64 1, PostgresqlTypes.Int8.fromInt64 2]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
@@ -43,9 +40,6 @@ spec = do
       result `shouldBe` Right input
 
     it "vector of bool" $ \env -> do
-      if not env.binary
-        then pendingWith "Text array encoding/decoding in Dimensionality is TODO"
-        else pure ()
       let input = Vector.fromList [PostgresqlTypes.Bool.fromBool True, PostgresqlTypes.Bool.fromBool False, PostgresqlTypes.Bool.fromBool True]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery

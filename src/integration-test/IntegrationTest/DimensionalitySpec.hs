@@ -15,9 +15,6 @@ spec :: SpecHook.HookedSpec
 spec = do
   describe "Dimensionality" $ do
     it "d1 non-nullable array roundtrip" $ \env -> do
-      if not env.binary
-        then pendingWith "Text array encoding/decoding in Dimensionality is TODO"
-        else pure ()
       let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
@@ -107,9 +104,6 @@ spec = do
       result `shouldBe` Right input
 
     it "d1 nullable elements array roundtrip" $ \env -> do
-      if not env.binary
-        then pendingWith "Text array encoding/decoding in Dimensionality is TODO"
-        else pure ()
       let input = Vector.fromList [Just (PostgresqlTypes.Int4.fromInt32 1), Nothing, Just (PostgresqlTypes.Int4.fromInt32 3)]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
@@ -134,9 +128,6 @@ spec = do
       result `shouldBe` Right input
 
     it "d1 single element array roundtrip" $ \env -> do
-      if not env.binary
-        then pendingWith "Text array encoding/decoding in Dimensionality is TODO"
-        else pure ()
       let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 42]
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
