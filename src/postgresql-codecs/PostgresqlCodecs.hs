@@ -47,7 +47,7 @@ module PostgresqlCodecs
     vector,
 
     -- * Scalar types
-    Scalar,
+    Scalar (..),
     native,
     enum,
     composite,

@@ -16,11 +16,6 @@ import qualified TextBuilder
 -- | Full codec specification for a single PostgreSQL scalar type.
 -- Carries the schema\/type name, optional statically-known OIDs, a binary-support
 -- flag, and binary\/textual encoder\/decoder pairs.
---
--- TODO: Keep this constructor open for extensibility.
--- Or just provide a 'custom' constructor.
--- OTOH, keeping the constructor open also serves for portability:
--- it can be the point of integration with libraries interpreting it.
 data Scalar a = Scalar
   { -- | Schema name. If empty, the default schema will be used.
     schemaName :: Text,
