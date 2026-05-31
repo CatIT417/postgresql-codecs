@@ -4,6 +4,14 @@ version: 0
 category: PostgreSQL, Codecs
 synopsis: Driver-agnostic PostgreSQL codecs library
 description:
+  postgresql-codecs is a driver-agnostic library for encoding and decoding
+  PostgreSQL values. It is organised in five composable layers: Scalar (type
+  metadata and binary\/textual codec pair), Dimensionality (scalar or
+  N-dimensional array), Nullability (nullable or non-nullable elements),
+  Columns\/Params (result-row decoder and query-parameter encoder), and Result
+  (full result-set strategy). Both the binary and textual PostgreSQL wire
+  formats are supported. Driver integration requires only a small
+  ConsumesColumns instance; the library ships no I\/O of its own.
 homepage: https://github.com/nikita-volkov/postgresql-codecs
 bug-reports: https://github.com/nikita-volkov/postgresql-codecs/issues
 author: Nikita Volkov <nikita.y.volkov@mail.ru>
