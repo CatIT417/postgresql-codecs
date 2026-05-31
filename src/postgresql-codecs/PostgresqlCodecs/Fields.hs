@@ -152,9 +152,34 @@ composite schemaName typeName fields =
                                 ]
                             }
           ExceptT fields.binaryDecoder,
-      textualEncoder = \_value -> error "TODO",
+      textualEncoder = \value -> do
+        fieldTexts <- fields.textualEncoder value
+        let renderedFields = map renderCompositeField fieldTexts
+        Right
+          ( TextBuilder.text "("
+              <> mconcat (intersperse (TextBuilder.text ",") renderedFields)
+              <> TextBuilder.text ")"
+          ),
       textualDecoder = Atto.char '(' *> fields.textualDecoder <* Atto.char ')'
     }
+
+renderCompositeField :: TextBuilder -> TextBuilder
+renderCompositeField tb =
+  let t = TextBuilder.toText tb
+   in if Text.null t
+        then mempty
+        else
+          if Text.any compositeSpecialChar t
+            then
+              TextBuilder.text "\""
+                <> TextBuilder.text (Text.concatMap escapeCompositeChar t)
+                <> TextBuilder.text "\""
+            else tb
+  where
+    compositeSpecialChar c = c == ',' || c == '(' || c == ')' || c == '"' || c == '\\' || isSpace c
+    escapeCompositeChar '"' = "\\\""
+    escapeCompositeChar '\\' = "\\\\"
+    escapeCompositeChar c = Text.singleton c
 
 compositeFieldRawText :: Atto.Parser (Maybe Text)
 compositeFieldRawText = do
