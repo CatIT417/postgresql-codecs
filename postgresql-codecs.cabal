@@ -160,6 +160,7 @@ test-suite integration-test
     IntegrationTest.DimensionSpec
     IntegrationTest.FieldsSpec
     IntegrationTest.Integrations.Pq
+    IntegrationTest.Integrations.Pq.RowDecoder
     IntegrationTest.NullabilitySpec
     IntegrationTest.ParamsSpec
     IntegrationTest.ResultSpec
