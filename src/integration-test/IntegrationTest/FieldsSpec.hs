@@ -73,7 +73,6 @@ spec = beforeAllWith setupTypes $
   do
     describe "Fields" $ do
       it "composite roundtrip" $ \env -> do
-        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
         let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
         result <- Pool.withResource env.pool $ \conn ->
           execQuery
@@ -86,7 +85,6 @@ spec = beforeAllWith setupTypes $
         result `shouldBe` Right pt
 
       it "composite with nullable field non-null" $ \env -> do
-        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
         let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Just (PostgresqlTypes.Int4.fromInt32 2)}
         result <- Pool.withResource env.pool $ \conn ->
           execQuery
@@ -99,7 +97,6 @@ spec = beforeAllWith setupTypes $
         result `shouldBe` Right val
 
       it "composite with nullable field null" $ \env -> do
-        pendingWith "PostgresqlCodecs.Fields.composite textual codec is TODO"
         let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Nothing}
         result <- Pool.withResource env.pool $ \conn ->
           execQuery
