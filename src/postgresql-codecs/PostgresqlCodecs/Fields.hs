@@ -11,6 +11,8 @@ import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
+-- | Codec for the fields of a PostgreSQL composite type.
+-- @a@ is the input type for encoding; @b@ is the output type for decoding.
 data Fields a b = Fields
   { count :: Int32,
     binaryEncoder :: a -> Either Report Write.Write,
@@ -65,6 +67,7 @@ instance Profunctor Fields where
         textualDecoder = fmap g textualDecoder
       }
 
+-- | Build a single composite field codec from a scalar, dimensionality, and nullability.
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
@@ -114,6 +117,7 @@ field scalar dimensionality nullability =
                   Right value -> pure (nullability.onNonNull value)
         }
 
+-- | Build a 'Scalar' for a PostgreSQL composite type from a 'Fields' specification.
 composite :: Text -> Text -> Fields a a -> Scalar a
 composite schemaName typeName fields =
   Scalar

@@ -51,6 +51,7 @@ instance Monoid (Params a) where
         textualEncoder = const (Right [])
       }
 
+-- | Build a single-parameter encoder from a scalar, dimensionality, and nullability.
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid

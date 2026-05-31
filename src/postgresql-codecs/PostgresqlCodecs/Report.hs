@@ -69,7 +69,8 @@ toTextBuilder report =
         <> TextBuilder.text ": "
         <> TextBuilder.text value
 
--- | Structured model of a report.
+-- | Typeclass for structured error report models.
+-- Implement to map your error type to a static message, suggestion, and dynamic details.
 class IsReport a where
   -- | Static message identifying the kind of report.
   taggedStaticMessage :: Tagged a Text
@@ -102,7 +103,7 @@ suggest :: Text -> Report -> Report
 suggest suggestion report =
   report {suggestion = suggestion}
 
--- | Structured detail value that can be attached to a 'Report'.
+-- | Typeclass for values that can be attached as detail entries to a 'Report'.
 class IsDetail a where
   taggedDetailKey :: Tagged a Text
   toReportDetailValue :: a -> Text

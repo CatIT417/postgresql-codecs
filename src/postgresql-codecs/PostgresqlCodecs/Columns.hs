@@ -12,6 +12,8 @@ import qualified PtrPeeker
 
 -- * Ports
 
+-- | Typeclass for driver-specific column consumption.
+-- Implement this for each PostgreSQL driver to wire up the library.
 class (Applicative f) => ConsumesColumns f where
   consumeColumn ::
     Either Report a ->
@@ -49,6 +51,7 @@ instance Applicative Columns where
           decoder = df <*> dx
         }
 
+-- | Build a single-column decoder from a scalar, dimensionality, and nullability.
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
 column scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid

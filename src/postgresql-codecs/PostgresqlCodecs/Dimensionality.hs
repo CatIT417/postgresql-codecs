@@ -22,6 +22,9 @@ data EncodedTextArray = EncodedTextArray
     encodedTextWrite :: TextBuilder.TextBuilder
   }
 
+-- | Determines the array dimensionality of the encoded\/decoded type.
+-- @scalar@ is the scalar element type; @vec@ is the resulting container type.
+-- Use 'd0' for no array wrapping and 'd1'–'d6' for N-dimensional arrays.
 data Dimensionality scalar vec = Dimensionality
   { dims :: Int,
     binaryEncoder ::
@@ -704,6 +707,7 @@ parseTextArray6 elementNullability dim1 dim2 dim3 dim4 dim5 dim6 scalarDecoder =
   values <- Atto.char '{' *> Atto.sepBy (parseTextArray5 elementNullability dim1 dim2 dim3 dim4 dim5 scalarDecoder) (Atto.char ',') <* Atto.char '}'
   buildFromList dim6 values
 
+-- | No array wrapping; the scalar value is passed through directly.
 d0 :: Dimensionality a a
 d0 =
   Dimensionality
@@ -714,6 +718,7 @@ d0 =
       textualDecoder = id
     }
 
+-- | Wrap scalar in a 1-dimensional array using the given element nullability and dimension constructor.
 d1 :: Nullability a b -> Dimension b c -> Dimensionality a c
 d1 elementNullability (Dimension construct1 destruct1 count1) =
   Dimensionality
@@ -732,6 +737,7 @@ d1 elementNullability (Dimension construct1 destruct1 count1) =
         parseTextArray1 elementNullability (Dimension construct1 destruct1 count1) scalarDecoder
     }
 
+-- | Wrap scalar in a 2-dimensional array using the given element nullability and dimension constructors.
 d2 :: Nullability a b -> Dimension b c -> Dimension c d -> Dimensionality a d
 d2 elementNullability dim1 dim2 =
   Dimensionality
@@ -750,6 +756,7 @@ d2 elementNullability dim1 dim2 =
         parseTextArray2 elementNullability dim1 dim2 scalarDecoder
     }
 
+-- | Wrap scalar in a 3-dimensional array using the given element nullability and dimension constructors.
 d3 :: Nullability a b -> Dimension b c -> Dimension c d -> Dimension d e -> Dimensionality a e
 d3 elementNullability dim1 dim2 dim3 =
   Dimensionality
@@ -768,6 +775,7 @@ d3 elementNullability dim1 dim2 dim3 =
         parseTextArray3 elementNullability dim1 dim2 dim3 scalarDecoder
     }
 
+-- | Wrap scalar in a 4-dimensional array using the given element nullability and dimension constructors.
 d4 :: Nullability a b -> Dimension b c -> Dimension c d -> Dimension d e -> Dimension e f -> Dimensionality a f
 d4 elementNullability dim1 dim2 dim3 dim4 =
   Dimensionality
@@ -786,6 +794,7 @@ d4 elementNullability dim1 dim2 dim3 dim4 =
         parseTextArray4 elementNullability dim1 dim2 dim3 dim4 scalarDecoder
     }
 
+-- | Wrap scalar in a 5-dimensional array using the given element nullability and dimension constructors.
 d5 :: Nullability a b -> Dimension b c -> Dimension c d -> Dimension d e -> Dimension e f -> Dimension f g -> Dimensionality a g
 d5 elementNullability dim1 dim2 dim3 dim4 dim5 =
   Dimensionality
@@ -804,6 +813,7 @@ d5 elementNullability dim1 dim2 dim3 dim4 dim5 =
         parseTextArray5 elementNullability dim1 dim2 dim3 dim4 dim5 scalarDecoder
     }
 
+-- | Wrap scalar in a 6-dimensional array using the given element nullability and dimension constructors.
 d6 :: Nullability a b -> Dimension b c -> Dimension c d -> Dimension d e -> Dimension e f -> Dimension f g -> Dimension g h -> Dimensionality a h
 d6 elementNullability dim1 dim2 dim3 dim4 dim5 dim6 =
   Dimensionality

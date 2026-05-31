@@ -1,3 +1,12 @@
+-- | Driver-agnostic PostgreSQL codec library.
+--
+-- Provides a five-layer abstraction for encoding and decoding PostgreSQL values:
+--
+-- 1. 'Scalar' — a single PostgreSQL scalar type with binary\/textual encoders and decoders.
+-- 2. 'Dimensionality' — pass-through ('d0') or N-dimensional array wrapping ('d1'–'d6').
+-- 3. 'Nullability' — whether values may be NULL ('nullable' or 'nonNullable').
+-- 4. 'Columns' \/ 'Params' — result-set column decoder and query parameter encoder.
+-- 5. 'Result' — full result-set decoding strategy.
 module PostgresqlCodecs
   ( -- * Report
     Report (..),

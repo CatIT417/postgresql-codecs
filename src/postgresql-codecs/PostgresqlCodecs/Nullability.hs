@@ -3,6 +3,8 @@ module PostgresqlCodecs.Nullability where
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report)
 
+-- | Describes how NULL values are handled for a specific field or column.
+-- @a@ is the non-null element type; @b@ is the decoded result type (e.g. @a@ or @Maybe a@).
 data Nullability a b = Nullability
   { nullable :: Bool,
     onNull :: Either Report b,
@@ -16,6 +18,7 @@ data Nullability a b = Nullability
       (b -> c)
   }
 
+-- | Wraps decoded values in 'Maybe'; maps NULL to @Right Nothing@.
 nullable :: Nullability a (Maybe a)
 nullable =
   Nullability
@@ -24,6 +27,7 @@ nullable =
     Just
     maybe
 
+-- | Rejects NULL with a 'Report' error; passes non-null values through unmodified.
 nonNullable :: Nullability a a
 nonNullable =
   Nullability

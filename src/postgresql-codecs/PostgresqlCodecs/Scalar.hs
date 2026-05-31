@@ -13,6 +13,10 @@ import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
+-- | Full codec specification for a single PostgreSQL scalar type.
+-- Carries the schema\/type name, optional statically-known OIDs, a binary-support
+-- flag, and binary\/textual encoder\/decoder pairs.
+--
 -- TODO: Keep this constructor open for extensibility.
 -- Or just provide a 'custom' constructor.
 -- OTOH, keeping the constructor open also serves for portability:
@@ -49,7 +53,7 @@ instance Invariant Scalar where
         ..
       }
 
--- | Lift a standard Postgres type into Scalar.
+-- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
 native :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
 native =
   let -- Convert decoding errors between layers (they have identical shapes)
@@ -102,6 +106,8 @@ native =
           textualDecoder = PostgresqlTypes.textualDecoder
         }
 
+-- | Build a 'Scalar' for a PostgreSQL enum type from a label↔value association list.
+-- The schema name, type name, and label\/value pairs must match the server-side definition.
 enum :: (Ord a) => Text -> Text -> [(Text, a)] -> Scalar a
 enum schema tName variants =
   let byValue = Map.fromList (map (\(l, v) -> (v, l)) variants)
