@@ -71,6 +71,46 @@ spec = do
           ()
       result `shouldBe` Left ("Expected 1 row, got 2" :: PostgresqlCodecs.Report)
 
+    it "oneRow errors on column count mismatch" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 1::int4, 2::int4"
+          mempty
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          env.binary
+          ()
+      result
+        `shouldBe` Left
+          PostgresqlCodecs.Report
+            { message = "Unexpected number of columns in result set",
+              suggestion = "Ensure the selected columns match the Columns decoder.",
+              details =
+                [ ("expectedColumns", "1"),
+                  ("actualColumns", "2")
+                ]
+            }
+
+    it "someRow validates column count even with zero rows" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 1::int4, 2::int4 WHERE false"
+          mempty
+          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result (Maybe PostgresqlTypes.Int4))
+          env.binary
+          ()
+      result
+        `shouldBe` Left
+          PostgresqlCodecs.Report
+            { message = "Unexpected number of columns in result set",
+              suggestion = "Ensure the selected columns match the Columns decoder.",
+              details =
+                [ ("expectedColumns", "1"),
+                  ("actualColumns", "2")
+                ]
+            }
+
     it "someRow returns Just when present" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
         execQuery

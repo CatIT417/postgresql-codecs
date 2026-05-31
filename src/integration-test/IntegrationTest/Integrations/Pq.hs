@@ -67,47 +67,75 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
           _ -> queryError pgResult
       PostgresqlCodecs.MaybeRow cols noRow toRow ->
         case status of
-          Pq.TuplesOk -> do
-            nrows <- Pq.ntuples pgResult
-            if nrows == 0
-              then pure (Right noRow)
-              else fmap (fmap toRow) (decodeRow cols pgResult (Pq.Row 0))
+          Pq.TuplesOk ->
+            withValidatedColumns cols pgResult do
+              nrows <- Pq.ntuples pgResult
+              if nrows == 0
+                then pure (Right noRow)
+                else fmap (fmap toRow) (decodeRow cols pgResult (Pq.Row 0))
           _ -> queryError pgResult
       PostgresqlCodecs.OneRow cols ->
         case status of
-          Pq.TuplesOk -> do
-            nrows <- Pq.ntuples pgResult
-            if nrows /= 1
-              then
-                pure $
-                  Left $
-                    fromString
-                      ( "Expected 1 row, got "
-                          <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
-                      )
-              else decodeRow cols pgResult (Pq.Row 0)
+          Pq.TuplesOk ->
+            withValidatedColumns cols pgResult do
+              nrows <- Pq.ntuples pgResult
+              if nrows /= 1
+                then
+                  pure $
+                    Left $
+                      fromString
+                        ( "Expected 1 row, got "
+                            <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
+                        )
+                else decodeRow cols pgResult (Pq.Row 0)
           _ -> queryError pgResult
       PostgresqlCodecs.ManyRows cols initAcc foldRow fin ->
         case status of
-          Pq.TuplesOk -> do
-            nrows <- Pq.ntuples pgResult
-            let rows = [Pq.Row 0 .. nrows - 1]
-            foldResult <-
-              foldM
-                ( \accE rowIdx -> case accE of
-                    Left e -> pure (Left e)
-                    Right acc -> do
-                      rowResult <- decodeRow cols pgResult rowIdx
-                      pure $ case rowResult of
-                        Left e -> Left e
-                        Right r -> foldRow acc r
-                )
-                (Right initAcc)
-                rows
-            pure $ case foldResult of
-              Left e -> Left e
-              Right acc -> fin acc
+          Pq.TuplesOk ->
+            withValidatedColumns cols pgResult do
+              nrows <- Pq.ntuples pgResult
+              let rows = [Pq.Row 0 .. nrows - 1]
+              foldResult <-
+                foldM
+                  ( \accE rowIdx -> case accE of
+                      Left e -> pure (Left e)
+                      Right acc -> do
+                        rowResult <- decodeRow cols pgResult rowIdx
+                        pure $ case rowResult of
+                          Left e -> Left e
+                          Right r -> foldRow acc r
+                  )
+                  (Right initAcc)
+                  rows
+              pure $ case foldResult of
+                Left e -> Left e
+                Right acc -> fin acc
           _ -> queryError pgResult
+
+    withValidatedColumns cols pgResult action = do
+      countValidation <- validateColumnCount cols pgResult
+      case countValidation of
+        Left report -> pure (Left report)
+        Right () -> action
+
+    validateColumnCount cols pgResult = do
+      actualCount <- Pq.nfields pgResult
+      let expectedCount = fromIntegral cols.count :: Pq.Column
+      if actualCount == expectedCount
+        then pure (Right ())
+        else
+          let Pq.Col actualCountInt = actualCount
+              Pq.Col expectedCountInt = expectedCount
+           in pure $
+                Left
+                  PostgresqlCodecs.Report
+                    { message = "Unexpected number of columns in result set",
+                      suggestion = "Ensure the selected columns match the Columns decoder.",
+                      details =
+                        [ ("expectedColumns", fromString (show expectedCountInt)),
+                          ("actualColumns", fromString (show actualCountInt))
+                        ]
+                    }
 
     queryError pgResult = do
       mErr <- Pq.resultErrorMessage pgResult
