@@ -138,24 +138,27 @@ dimsHeader expectedDimensionCount elementNullability expectedBaseOid = do
   when (baseOid /= expectedBaseOid) do
     throwError (baseOidMismatch expectedBaseOid baseOid)
 
-  when (dimensionCount /= expectedDimensionCount) do
-    throwError (dimsMismatch expectedDimensionCount dimensionCount)
+  if dimensionCount == 0
+    then pure (replicate (fromIntegral expectedDimensionCount) 0)
+    else do
+      when (dimensionCount /= expectedDimensionCount) do
+        throwError (dimsMismatch expectedDimensionCount dimensionCount)
 
-  when (hasNulls && not elementNullability.nullable) do
-    throwError unexpectedNulls
+      when (hasNulls && not elementNullability.nullable) do
+        throwError unexpectedNulls
 
-  dimensions <- lift do
-    PtrPeeker.fixed do
-      replicateM (fromIntegral expectedDimensionCount) do
-        size <- PtrPeeker.beSignedInt4
-        lowerBound <- PtrPeeker.beSignedInt4
-        pure (size, lowerBound)
+      dimensions <- lift do
+        PtrPeeker.fixed do
+          replicateM (fromIntegral expectedDimensionCount) do
+            size <- PtrPeeker.beSignedInt4
+            lowerBound <- PtrPeeker.beSignedInt4
+            pure (size, lowerBound)
 
-  forM_ dimensions \(_, lowerBound) ->
-    when (lowerBound /= 1) do
-      throwError (unsupportedLowerBound lowerBound)
+      forM_ dimensions \(_, lowerBound) ->
+        when (lowerBound /= 1) do
+          throwError (unsupportedLowerBound lowerBound)
 
-  pure (map fst dimensions)
+      pure (map fst dimensions)
 
 encodeElement ::
   Nullability a b ->
