@@ -122,7 +122,6 @@ spec = do
       result `shouldBe` Right input
 
     it "d1 empty array roundtrip" $ \env -> do
-      pendingWith "PostgreSQL encodes empty arrays with dimension count 0, which the library rejects"
       let input = Vector.fromList [] :: Vector PostgresqlTypes.Int4
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
