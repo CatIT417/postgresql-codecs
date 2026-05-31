@@ -15,9 +15,13 @@ import qualified PtrPeeker
 -- | Typeclass for driver-specific column consumption.
 -- Implement this for each PostgreSQL driver to wire up the library.
 class (Applicative f) => ConsumesColumns f where
+  -- | Consume the next column value in the current row of the result set.
   consumeColumn ::
+    -- | How to handle NULL value.
     Either Report a ->
+    -- | Binary decoder for the column.
     PtrPeeker.Variable (Either Report a) ->
+    -- | Textual decoder for the column.
     Atto.Parser a ->
     f a
 
