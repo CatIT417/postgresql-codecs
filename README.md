@@ -32,9 +32,9 @@ Result          - full result-set strategy (oneRow, someRow, manyRows, rowsAffec
 ```haskell
 import PostgresqlCodecs qualified
 
--- A native scalar (uses postgresql-types IsScalar instance)
+-- A standard scalar (uses postgresql-types IsScalar instance)
 int4Scalar :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
-int4Scalar = PostgresqlCodecs.native
+int4Scalar = PostgresqlCodecs.standard
 
 -- An enum scalar
 data Color = Red | Green | Blue
@@ -55,10 +55,11 @@ pointScalar = PostgresqlCodecs.composite "public" "point" $
     <$> PostgresqlCodecs.field int4Scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.x)
     <*> PostgresqlCodecs.field int4Scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.y)
 
--- Encode as a query parameter and decode as a result column
+-- Encoder as a query parameter and decode as a result column
 param :: PostgresqlCodecs.Params Point
 param = PostgresqlCodecs.param pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 
+-- Decoder as a result column
 col :: PostgresqlCodecs.Columns Point
 col = PostgresqlCodecs.column pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 ```

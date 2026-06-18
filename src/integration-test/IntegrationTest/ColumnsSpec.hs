@@ -19,7 +19,7 @@ spec = do
           conn
           "SELECT 42::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -27,8 +27,8 @@ spec = do
     it "multiple columns" $ \env -> do
       let cols =
             (,)
-              <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-              <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <$> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
@@ -42,9 +42,9 @@ spec = do
     it "mixed type columns" $ \env -> do
       let cols =
             (,,)
-              <$> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-              <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-              <*> PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <$> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn

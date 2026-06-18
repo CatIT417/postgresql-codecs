@@ -40,13 +40,13 @@ setupTypes env = do
 spec :: SpecHook.HookedSpec
 spec = beforeAllWith setupTypes $ do
   describe "Scalar" $ do
-    describe "native roundtrips" $ do
+    describe "standard roundtrips" $ do
       it "int2" $ \env -> do
         result <- Pool.withResource env.pool $ \conn ->
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Int2.fromInt16 42)
             "int2"
         result `shouldBe` Right (PostgresqlTypes.Int2.fromInt16 42)
@@ -56,7 +56,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Int4.fromInt32 42)
             "int4"
         result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -66,7 +66,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Int8.fromInt64 9876543210)
             "int8"
         result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
@@ -76,7 +76,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Float4.fromFloat 3.14)
             "float4"
         result `shouldBe` Right (PostgresqlTypes.Float4.fromFloat 3.14)
@@ -86,7 +86,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Float8.fromDouble 3.14)
             "float8"
         result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
@@ -96,7 +96,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             ("hello" :: PostgresqlTypes.Text)
             "text"
         result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
@@ -106,7 +106,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Bool.fromBool True)
             "bool"
         result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
@@ -116,7 +116,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             (PostgresqlTypes.Bytea.fromByteString "hello")
             "bytea"
         result `shouldBe` Right (PostgresqlTypes.Bytea.fromByteString "hello")
@@ -127,7 +127,7 @@ spec = beforeAllWith setupTypes $ do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.native
+            PostgresqlCodecs.standard
             val
             "uuid"
         result `shouldBe` Right val

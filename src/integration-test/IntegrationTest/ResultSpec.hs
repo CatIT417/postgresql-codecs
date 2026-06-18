@@ -44,7 +44,7 @@ spec = do
           conn
           "SELECT 42::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -55,7 +55,7 @@ spec = do
           conn
           "SELECT 42::int4 WHERE false"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
       result `shouldBe` Left ("Expected 1 row, got 0" :: PostgresqlCodecs.Report)
@@ -66,7 +66,7 @@ spec = do
           conn
           "SELECT * FROM unnest(ARRAY[1,2]::int4[])"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
       result `shouldBe` Left ("Expected 1 row, got 2" :: PostgresqlCodecs.Report)
@@ -77,7 +77,7 @@ spec = do
           conn
           "SELECT 1::int4, 2::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
       result
@@ -97,7 +97,7 @@ spec = do
           conn
           "SELECT 1::int4, 2::int4 WHERE false"
           mempty
-          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result (Maybe PostgresqlTypes.Int4))
+          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result (Maybe PostgresqlTypes.Int4))
           env.binary
           ()
       result
@@ -117,7 +117,7 @@ spec = do
           conn
           "SELECT 42::int4"
           mempty
-          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
@@ -128,7 +128,7 @@ spec = do
           conn
           "SELECT 42::int4 WHERE false"
           mempty
-          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
@@ -139,7 +139,7 @@ spec = do
           conn
           "SELECT * FROM unnest(ARRAY[1,2,3]::int4[])"
           mempty
-          (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3])
@@ -150,7 +150,7 @@ spec = do
           conn
           "SELECT * FROM unnest(ARRAY[]::int4[])"
           mempty
-          (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.native PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.manyRows (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result `shouldBe` Right (Vector.fromList [] :: Vector PostgresqlTypes.Int4)

@@ -49,8 +49,8 @@ instance Invariant Scalar where
       }
 
 -- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
-native :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
-native =
+standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
+standard =
   let -- Convert decoding errors between layers (they have identical shapes)
       convertError :: PostgresqlTypes.DecodingError -> Report
       convertError PostgresqlTypes.DecodingError {location, reason} =
