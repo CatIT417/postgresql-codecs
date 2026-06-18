@@ -2,7 +2,7 @@
 
 **postgresql-codecs** is a driver-agnostic Haskell library for encoding and
 decoding PostgreSQL values. It covers both the binary and textual wire formats
-and ships no I/O itself — driver integration requires only a small
+and ships no I/O itself - driver integration requires only a small
 `ConsumesColumns` instance.
 
 ## Install
@@ -16,15 +16,15 @@ build-depends: postgresql-codecs
 The library is built from five composable layers:
 
 ```
-Scalar          — type name, OIDs, binary+textual encoder/decoder
+Scalar          - type name, OIDs, binary+textual encoder/decoder
    ↓
-Dimensionality  — pass-through (d0) or N-dimensional array (d1–d6)
+Dimensionality  - pass-through (d0) or N-dimensional array (d1–d6)
    ↓
-Nullability     — nullable (Maybe) or non-nullable elements
+Nullability     - nullable (Maybe) or non-nullable elements
    ↓
-Columns/Params  — result-column decoder / query-parameter encoder
+Columns/Params  - result-column decoder / query-parameter encoder
    ↓
-Result          — full result-set strategy (oneRow, someRow, manyRows, rowsAffected)
+Result          - full result-set strategy (oneRow, someRow, manyRows, rowsAffected)
 ```
 
 ## Quick example
@@ -62,8 +62,3 @@ param = PostgresqlCodecs.param pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.
 col :: PostgresqlCodecs.Columns Point
 col = PostgresqlCodecs.column pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 ```
-
-## Links
-
-- [Hackage](https://hackage.haskell.org/package/postgresql-codecs)
-- [Bug tracker](https://github.com/nikita-volkov/postgresql-codecs/issues)
