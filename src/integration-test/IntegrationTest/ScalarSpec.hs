@@ -28,13 +28,13 @@ genreScalar :: PostgresqlCodecs.Scalar Genre
 genreScalar =
   PostgresqlCodecs.enum
     "public"
-    "genre"
+    "movie_genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
 setupTypes :: SpecHook.Env -> IO SpecHook.Env
 setupTypes env = do
   Pool.withResource env.pool $ \conn ->
-    PQ.exec conn "CREATE TYPE genre AS ENUM ('Comedy', 'Action', 'Drama')"
+    PQ.exec conn "CREATE TYPE movie_genre AS ENUM ('Comedy', 'Action', 'Drama')"
   pure env
 
 spec :: SpecHook.HookedSpec
@@ -137,7 +137,7 @@ spec = beforeAllWith setupTypes $ do
         result <- Pool.withResource env.pool $ \conn ->
           execQuery
             conn
-            "SELECT $1::genre"
+            "SELECT $1::movie_genre"
             (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
             (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
             env.binary

@@ -71,14 +71,16 @@ instance Applicative Columns where
 -- | Build a single-column decoder from a scalar, dimensionality, and nullability.
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
 column scalar dimensionality nullability =
-  let baseOid = fromMaybe 705 scalar.baseOid
-   in Columns
-        { count = 1,
-          unresolvedTypes = scalar.unresolvedTypes,
-          oids = \_resolver -> [fromMaybe 0 (if dimensionality.dims > 0 then scalar.arrayOid else scalar.baseOid)],
-          decoder = \resolver ->
-            consumeColumn
+  Columns
+    { count = 1,
+      unresolvedTypes = scalar.unresolvedTypes,
+      oids = \_resolver -> [fromMaybe 0 (if dimensionality.dims > 0 then scalar.arrayOid else scalar.baseOid)],
+      decoder = \resolver ->
+        let baseOid = case scalar.baseOid of
+              Just o -> o
+              Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
+         in consumeColumn
               nullability.onNull
               (fmap (fmap nullability.onNonNull) (dimensionality.binaryDecoder baseOid (scalar.binaryDecoder resolver)))
               (fmap nullability.onNonNull (dimensionality.textualDecoder (scalar.textualDecoder resolver)))
-        }
+    }
