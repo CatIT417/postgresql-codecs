@@ -1,7 +1,10 @@
 module IntegrationTest.ParamsSpec (spec) where
 
+import qualified Data.ByteString.Char8 as BS8
 import Data.Functor.Contravariant
 import qualified Data.Pool as Pool
+import Data.Word (Word32)
+import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
@@ -13,9 +16,45 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
+-- ---------------------------------------------------------------------------
+-- Enum type for testing the resolved parameter OID
+
+data Color = Red | Green deriving (Eq, Ord, Show)
+
+colorScalar :: PostgresqlCodecs.Scalar Color
+colorScalar = PostgresqlCodecs.enum "" "param_color" [("red", Red), ("green", Green)]
+
+setupTypes :: SpecHook.Env -> IO SpecHook.Env
+setupTypes env = do
+  Pool.withResource env.pool $ \conn ->
+    PQ.exec conn "CREATE TYPE param_color AS ENUM ('red', 'green')"
+  pure env
+
+-- | Fetch a single-row, single-column @oid@ value as text and parse it.
+fetchOid :: PQ.Connection -> BS8.ByteString -> IO Word32
+fetchOid conn sql = do
+  mRes <- PQ.exec conn sql
+  mBytes <- case mRes of
+    Just res -> PQ.getvalue' res (PQ.toRow (0 :: Int)) (PQ.toColumn (0 :: Int))
+    Nothing -> pure Nothing
+  pure (maybe 0 (maybe 0 (fromIntegral . fst) . BS8.readInt) mBytes)
+
 spec :: SpecHook.HookedSpec
-spec = do
+spec = beforeAllWith setupTypes $ do
   describe "Params" $ do
+    it "resolved enum parameter OID matches pg_type.oid" $ \env ->
+      Pool.withResource env.pool $ \conn -> do
+        -- real OID straight from the catalog
+        realOid <- fetchOid conn "SELECT to_regtype('param_color')::oid::text"
+        let ps = PostgresqlCodecs.param colorScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+            resolver s n =
+              if (s, n) == ("", "param_color")
+                then PostgresqlCodecs.TypeOids realOid 0
+                else PostgresqlCodecs.TypeOids 0 0
+        realOid `shouldNotBe` 0
+        ps.oids resolver `shouldBe` [realOid]
+        ps.oids (\_ _ -> PostgresqlCodecs.TypeOids 0 0) `shouldBe` [0]
+
     it "single int4 param" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
         execQuery

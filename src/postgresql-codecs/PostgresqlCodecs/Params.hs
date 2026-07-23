@@ -63,12 +63,19 @@ instance Monoid (Params a) where
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
   let baseOid = fromMaybe 0 scalar.baseOid
-      theParamOid = fromMaybe 0 (if dimensionality.dims > 0 then scalar.arrayOid else scalar.baseOid)
       Nullability {encoder = enc} = nullability
+      resolveParamOid resolver =
+        if dimensionality.dims > 0
+          then case scalar.arrayOid of
+            Just o -> o
+            Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
+          else case scalar.baseOid of
+            Just o -> o
+            Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
    in Params
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
-          oids = \_resolver -> [theParamOid],
+          oids = \resolver -> [resolveParamOid resolver],
           binaryEncoder = \resolver c ->
             let binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
              in fmap (: []) (enc (Right Nothing) (\a -> fmap Just (binEnc a)) c),
