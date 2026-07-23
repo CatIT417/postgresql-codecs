@@ -11,6 +11,10 @@ module PostgresqlCodecs
   ( -- * Report
     Report (..),
 
+    -- * Resolver
+    Resolver,
+    TypeOids (..),
+
     -- * Parameter
     Params (..),
     param,
@@ -68,6 +72,7 @@ import PostgresqlCodecs.Fields
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params
 import PostgresqlCodecs.Report (Report (..))
+import PostgresqlCodecs.Resolver
 import PostgresqlCodecs.Result
 import PostgresqlCodecs.Scalar
 import PostgresqlTypes

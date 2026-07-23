@@ -16,10 +16,14 @@ import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 import Prelude
 
+-- | Constant no-op resolver used by the harness until runtime OID resolution is wired up.
+constResolver :: PostgresqlCodecs.Resolver
+constResolver _ _ = PostgresqlCodecs.TypeOids 0 0
+
 -- | Decode a single row from a libpq result, advancing through columns.
 decodeRow :: PostgresqlCodecs.Columns row -> Pq.Result -> Pq.Row -> IO (Either PostgresqlCodecs.Report row)
 decodeRow PostgresqlCodecs.Columns {decoder} pgRes pgRow =
-  fmap (fmap fst) (RowDecoder.run decoder pgRes pgRow (Pq.Col 0))
+  fmap (fmap fst) (RowDecoder.run (decoder constResolver) pgRes pgRow (Pq.Col 0))
 
 -- | Execute a parameterised query and decode the result.
 execQuery ::
@@ -39,7 +43,7 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
               ( \oid mEncodedValue ->
                   fmap (\encodedValue -> (Pq.Oid (fromIntegral oid), encodedValue, parameterFormat)) mEncodedValue
               )
-              ps.oids
+              (ps.oids constResolver)
               encodedValues
       mPgResult <- Pq.execParams conn sql paramList Pq.Binary
       case mPgResult of
@@ -142,8 +146,8 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
       pure $ Left $ maybe (fromString "Query failed") (fromString . Text.unpack . Text.Encoding.decodeUtf8) mErr
     parameterEncoder =
       if isBinaryEncodingAllowed
-        then fmap (fmap (fmap Write.toByteString)) . ps.binaryEncoder
-        else fmap (fmap (fmap (Text.Encoding.encodeUtf8 . TextBuilder.toText))) . ps.textualEncoder
+        then fmap (fmap (fmap Write.toByteString)) . ps.binaryEncoder constResolver
+        else fmap (fmap (fmap (Text.Encoding.encodeUtf8 . TextBuilder.toText))) . ps.textualEncoder constResolver
     parameterFormat =
       if isBinaryEncodingAllowed
         then Pq.Binary

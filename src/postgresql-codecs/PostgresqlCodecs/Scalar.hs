@@ -4,10 +4,13 @@ module PostgresqlCodecs.Scalar where
 
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Map.Strict as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report (..))
+import PostgresqlCodecs.Resolver
 import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -30,21 +33,24 @@ data Scalar a = Scalar
     arrayOid :: Maybe Word32,
     -- | Whether this scalar type supports binary encoding/decoding.
     supportsBinary :: Bool,
-    binaryEncoder :: a -> Either Report Write.Write,
-    binaryDecoder :: PtrPeeker.Variable (Either Report a),
+    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
+    -- no statically known base OID and therefore must be resolved at runtime.
+    unresolvedTypes :: Set (Text, Text),
+    binaryEncoder :: Resolver -> a -> Either Report Write.Write,
+    binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report a),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> Either Report TextBuilder.TextBuilder,
+    textualEncoder :: Resolver -> a -> Either Report TextBuilder.TextBuilder,
     -- | Decode from Postgres textual format.
-    textualDecoder :: Atto.Parser a
+    textualDecoder :: Resolver -> Atto.Parser a
   }
 
 instance Invariant Scalar where
   invmap f g Scalar {..} =
     Scalar
-      { binaryEncoder = binaryEncoder . g,
-        binaryDecoder = fmap (fmap f) binaryDecoder,
-        textualEncoder = textualEncoder . g,
-        textualDecoder = fmap f textualDecoder,
+      { binaryEncoder = \r -> binaryEncoder r . g,
+        binaryDecoder = \r -> fmap (fmap f) (binaryDecoder r),
+        textualEncoder = \r -> textualEncoder r . g,
+        textualDecoder = \r -> fmap f (textualDecoder r),
         ..
       }
 
@@ -95,10 +101,11 @@ standard =
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
           supportsBinary = True,
-          binaryEncoder = \a -> Right (PostgresqlTypes.binaryEncoder a),
-          binaryDecoder = fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
-          textualEncoder = \a -> Right (PostgresqlTypes.textualEncoder a),
-          textualDecoder = PostgresqlTypes.textualDecoder
+          unresolvedTypes = mempty,
+          binaryEncoder = \_resolver a -> Right (PostgresqlTypes.binaryEncoder a),
+          binaryDecoder = \_resolver -> fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
+          textualEncoder = \_resolver a -> Right (PostgresqlTypes.textualEncoder a),
+          textualDecoder = \_resolver -> PostgresqlTypes.textualDecoder
         }
 
 -- | Build a 'Scalar' for a PostgreSQL enum type from a label↔value association list.
@@ -190,8 +197,9 @@ enum schema tName variants =
           baseOid = Nothing,
           arrayOid = Nothing,
           supportsBinary = True,
-          binaryEncoder = encoder,
-          binaryDecoder = decoder,
-          textualEncoder = textEncoder,
-          textualDecoder = textDecoder
+          unresolvedTypes = Set.singleton (schema, tName),
+          binaryEncoder = \_resolver -> encoder,
+          binaryDecoder = \_resolver -> decoder,
+          textualEncoder = \_resolver -> textEncoder,
+          textualDecoder = \_resolver -> textDecoder
         }

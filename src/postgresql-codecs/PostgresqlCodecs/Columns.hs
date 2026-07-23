@@ -3,10 +3,12 @@
 module PostgresqlCodecs.Columns where
 
 import qualified Data.Attoparsec.Text as Atto
+import Data.Set (Set)
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report)
+import PostgresqlCodecs.Resolver
 import PostgresqlCodecs.Scalar
 import qualified PtrPeeker
 
@@ -31,42 +33,52 @@ class (Applicative f) => ConsumesColumns f where
 data Columns a = Columns
   { -- | Expected number of columns in the result set.
     count :: Int32,
+    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
+    -- no statically known base OID and therefore must be resolved at runtime.
+    unresolvedTypes :: Set (Text, Text),
+    -- | OID of each column. A value of 0 means unknown.
+    oids :: Resolver -> [Word32],
     -- | Wire-format decoder that supports both binary and text formats.
-    decoder :: forall f. (ConsumesColumns f) => f a
+    decoder :: Resolver -> (forall f. (ConsumesColumns f) => f a)
   }
 
 instance Functor Columns where
-  fmap f Columns {count = cnt, decoder = dec} =
+  fmap f Columns {count, unresolvedTypes, oids, decoder} =
     Columns
-      { count = cnt,
-        decoder = fmap f dec
+      { count,
+        unresolvedTypes,
+        oids,
+        decoder = \r -> fmap f (decoder r)
       }
 
 instance Applicative Columns where
   pure x =
     Columns
       { count = 0,
-        decoder = pure x
+        unresolvedTypes = mempty,
+        oids = const [],
+        decoder = \_ -> pure x
       }
-  Columns {count = cf, decoder = df}
-    <*> Columns {count = cx, decoder = dx} =
+  Columns {count = cf, unresolvedTypes = uf, oids = of', decoder = df}
+    <*> Columns {count = cx, unresolvedTypes = ux, oids = ox, decoder = dx} =
       Columns
         { count = cf + cx,
-          decoder = df <*> dx
+          unresolvedTypes = uf <> ux,
+          oids = \r -> of' r <> ox r,
+          decoder = \r -> df r <*> dx r
         }
 
 -- | Build a single-column decoder from a scalar, dimensionality, and nullability.
 column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
 column scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
-      binPeek = dimensionality.binaryDecoder baseOid scalar.binaryDecoder
-      txtParser = dimensionality.textualDecoder scalar.textualDecoder
-      runOnNonNull = nullability.onNonNull
    in Columns
         { count = 1,
-          decoder =
+          unresolvedTypes = scalar.unresolvedTypes,
+          oids = \_resolver -> [fromMaybe 0 (if dimensionality.dims > 0 then scalar.arrayOid else scalar.baseOid)],
+          decoder = \resolver ->
             consumeColumn
               nullability.onNull
-              (fmap (fmap nullability.onNonNull) binPeek)
-              (fmap runOnNonNull txtParser)
+              (fmap (fmap nullability.onNonNull) (dimensionality.binaryDecoder baseOid (scalar.binaryDecoder resolver)))
+              (fmap nullability.onNonNull (dimensionality.textualDecoder (scalar.textualDecoder resolver)))
         }

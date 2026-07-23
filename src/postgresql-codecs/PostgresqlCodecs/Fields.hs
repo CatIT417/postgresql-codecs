@@ -1,11 +1,14 @@
 module PostgresqlCodecs.Fields where
 
 import qualified Data.Attoparsec.Text as Atto
+import Data.Set (Set)
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report (..))
+import PostgresqlCodecs.Resolver
 import PostgresqlCodecs.Scalar
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
@@ -15,69 +18,75 @@ import qualified TextBuilder
 -- @a@ is the input type for encoding; @b@ is the output type for decoding.
 data Fields a b = Fields
   { count :: Int32,
-    binaryEncoder :: a -> Either Report Write.Write,
-    binaryDecoder :: PtrPeeker.Variable (Either Report b),
+    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
+    -- no statically known base OID and therefore must be resolved at runtime.
+    unresolvedTypes :: Set (Text, Text),
+    binaryEncoder :: Resolver -> a -> Either Report Write.Write,
+    binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report b),
     -- | Represent in Postgres textual format.
-    textualEncoder :: a -> Either Report [TextBuilder.TextBuilder],
-    textualDecoder :: Atto.Parser b
+    textualEncoder :: Resolver -> a -> Either Report [TextBuilder.TextBuilder],
+    textualDecoder :: Resolver -> Atto.Parser b
   }
 
 instance Functor (Fields a) where
   fmap f Fields {..} =
     Fields
       { count,
+        unresolvedTypes,
         binaryEncoder,
-        binaryDecoder = fmap (fmap f) binaryDecoder,
+        binaryDecoder = \r -> fmap (fmap f) (binaryDecoder r),
         textualEncoder,
-        textualDecoder = fmap f textualDecoder
+        textualDecoder = \r -> fmap f (textualDecoder r)
       }
 
 instance Applicative (Fields a) where
   pure x =
     Fields
       { count = 0,
-        binaryEncoder = const (Right mempty),
-        binaryDecoder = pure (Right x),
-        textualEncoder = const (Right []),
-        textualDecoder = pure x
+        unresolvedTypes = mempty,
+        binaryEncoder = \_resolver -> const (Right mempty),
+        binaryDecoder = \_resolver -> pure (Right x),
+        textualEncoder = \_resolver -> const (Right []),
+        textualDecoder = \_resolver -> pure x
       }
   (<*>) left right =
-    let textualDecoder =
+    Fields
+      { count = left.count + right.count,
+        unresolvedTypes = left.unresolvedTypes <> right.unresolvedTypes,
+        binaryEncoder = \resolver value -> liftA2 (<>) (left.binaryEncoder resolver value) (right.binaryEncoder resolver value),
+        binaryDecoder = \resolver -> liftA2 (<*>) (left.binaryDecoder resolver) (right.binaryDecoder resolver),
+        textualEncoder = \resolver value -> do
+          leftTexts <- left.textualEncoder resolver value
+          rightTexts <- right.textualEncoder resolver value
+          Right (leftTexts <> rightTexts),
+        textualDecoder = \resolver ->
           if left.count == 0 || right.count == 0
-            then left.textualDecoder <*> right.textualDecoder
-            else left.textualDecoder <*> (Atto.char ',' *> right.textualDecoder)
-     in Fields
-          { count = left.count + right.count,
-            binaryEncoder = \value -> liftA2 (<>) (left.binaryEncoder value) (right.binaryEncoder value),
-            binaryDecoder = liftA2 (<*>) left.binaryDecoder right.binaryDecoder,
-            textualEncoder = \value -> do
-              leftTexts <- left.textualEncoder value
-              rightTexts <- right.textualEncoder value
-              Right (leftTexts <> rightTexts),
-            textualDecoder
-          }
+            then left.textualDecoder resolver <*> right.textualDecoder resolver
+            else left.textualDecoder resolver <*> (Atto.char ',' *> right.textualDecoder resolver)
+      }
 
 instance Profunctor Fields where
   dimap f g Fields {..} =
     Fields
       { count,
-        binaryEncoder = \value -> binaryEncoder (f value),
-        binaryDecoder = fmap (fmap g) binaryDecoder,
-        textualEncoder = \value -> textualEncoder (f value),
-        textualDecoder = fmap g textualDecoder
+        unresolvedTypes,
+        binaryEncoder = \resolver value -> binaryEncoder resolver (f value),
+        binaryDecoder = \r -> fmap (fmap g) (binaryDecoder r),
+        textualEncoder = \resolver value -> textualEncoder resolver (f value),
+        textualDecoder = \r -> fmap g (textualDecoder r)
       }
 
 -- | Build a single composite field codec from a scalar, dimensionality, and nullability.
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
   let baseOid = fromMaybe 705 scalar.baseOid
-      binEnc = dimensionality.binaryEncoder baseOid scalar.binaryEncoder
-      txtEnc = dimensionality.textualEncoder scalar.textualEncoder
       Nullability {encoder = enc} = nullability
    in Fields
         { count = 1,
-          binaryEncoder = \value ->
-            let oid = Write.bInt32 (fromIntegral baseOid)
+          unresolvedTypes = scalar.unresolvedTypes,
+          binaryEncoder = \resolver value ->
+            let binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
+                oid = Write.bInt32 (fromIntegral baseOid)
              in enc
                   (Right (oid <> Write.bInt32 (-1)))
                   ( \a -> do
@@ -86,7 +95,7 @@ field scalar dimensionality nullability =
                       Right (oid <> size <> write)
                   )
                   value,
-          binaryDecoder = do
+          binaryDecoder = \resolver -> do
             _fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             case contentSize of
@@ -94,13 +103,14 @@ field scalar dimensionality nullability =
               _ ->
                 fmap
                   (fmap nullability.onNonNull)
-                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder baseOid scalar.binaryDecoder)),
-          textualEncoder = \value ->
-            enc
-              (Right [mempty])
-              (\a -> do text <- txtEnc a; Right [text])
-              value,
-          textualDecoder = do
+                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder baseOid (scalar.binaryDecoder resolver))),
+          textualEncoder = \resolver value ->
+            let txtEnc = dimensionality.textualEncoder (scalar.textualEncoder resolver)
+             in enc
+                  (Right [mempty])
+                  (\a -> do text <- txtEnc a; Right [text])
+                  value,
+          textualDecoder = \resolver -> do
             rawField <- compositeFieldRawText
             case rawField of
               Nothing ->
@@ -112,7 +122,7 @@ field scalar dimensionality nullability =
                   case decodeQuotedCompositeFieldText fieldText of
                     Left message -> fail message
                     Right text -> pure text
-                case Atto.parseOnly (dimensionality.textualDecoder scalar.textualDecoder <* Atto.endOfInput) normalizedFieldText of
+                case Atto.parseOnly (dimensionality.textualDecoder (scalar.textualDecoder resolver) <* Atto.endOfInput) normalizedFieldText of
                   Left message -> fail message
                   Right value -> pure (nullability.onNonNull value)
         }
@@ -126,10 +136,11 @@ composite schemaName typeName fields =
       baseOid = Nothing,
       arrayOid = Nothing,
       supportsBinary = True,
-      binaryEncoder = \value -> do
-        fieldWrites <- fields.binaryEncoder value
+      unresolvedTypes = Set.insert (schemaName, typeName) fields.unresolvedTypes,
+      binaryEncoder = \resolver value -> do
+        fieldWrites <- fields.binaryEncoder resolver value
         Right (Write.bInt32 fields.count <> fieldWrites),
-      binaryDecoder =
+      binaryDecoder = \resolver ->
         runExceptT do
           _ <-
             ExceptT do
@@ -151,16 +162,16 @@ composite schemaName typeName fields =
                                   ("expectedInputs", TextBuilder.toText (TextBuilder.decimal fields.count))
                                 ]
                             }
-          ExceptT fields.binaryDecoder,
-      textualEncoder = \value -> do
-        fieldTexts <- fields.textualEncoder value
+          ExceptT (fields.binaryDecoder resolver),
+      textualEncoder = \resolver value -> do
+        fieldTexts <- fields.textualEncoder resolver value
         let renderedFields = map renderCompositeField fieldTexts
         Right
           ( TextBuilder.text "("
               <> mconcat (intersperse (TextBuilder.text ",") renderedFields)
               <> TextBuilder.text ")"
           ),
-      textualDecoder = Atto.char '(' *> fields.textualDecoder <* Atto.char ')'
+      textualDecoder = \resolver -> Atto.char '(' *> fields.textualDecoder resolver <* Atto.char ')'
     }
 
 renderCompositeField :: TextBuilder -> TextBuilder

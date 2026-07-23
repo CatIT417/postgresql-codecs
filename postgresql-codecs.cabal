@@ -109,6 +109,7 @@ library
     PostgresqlCodecs.Params
     PostgresqlCodecs.Prelude
     PostgresqlCodecs.Report
+    PostgresqlCodecs.Resolver
     PostgresqlCodecs.Result
     PostgresqlCodecs.Scalar
 
