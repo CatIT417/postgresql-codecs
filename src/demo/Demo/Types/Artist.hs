@@ -8,6 +8,7 @@ data Artist = Artist
   { name :: PostgresqlCodecs.Text,
     genre :: Genre
   }
+  deriving stock (Eq, Show)
 
 artist :: PostgresqlCodecs.Scalar Artist
 artist =

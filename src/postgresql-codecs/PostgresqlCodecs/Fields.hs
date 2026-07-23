@@ -79,13 +79,16 @@ instance Profunctor Fields where
 -- | Build a single composite field codec from a scalar, dimensionality, and nullability.
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
-  let baseOid = fromMaybe 705 scalar.baseOid
-      Nullability {encoder = enc} = nullability
+  let Nullability {encoder = enc} = nullability
+      resolvedBaseOid resolver = case scalar.baseOid of
+        Just o -> o
+        Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
    in Fields
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
           binaryEncoder = \resolver value ->
-            let binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
+            let baseOid = resolvedBaseOid resolver
+                binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
                 oid = Write.bInt32 (fromIntegral baseOid)
              in enc
                   (Right (oid <> Write.bInt32 (-1)))
@@ -103,7 +106,7 @@ field scalar dimensionality nullability =
               _ ->
                 fmap
                   (fmap nullability.onNonNull)
-                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder baseOid (scalar.binaryDecoder resolver))),
+                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder (resolvedBaseOid resolver) (scalar.binaryDecoder resolver))),
           textualEncoder = \resolver value ->
             let txtEnc = dimensionality.textualEncoder (scalar.textualEncoder resolver)
              in enc

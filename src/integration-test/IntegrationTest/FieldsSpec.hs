@@ -3,6 +3,7 @@ module IntegrationTest.FieldsSpec (spec) where
 import qualified Data.Pool as Pool
 import Data.Profunctor
 import qualified Database.PostgreSQL.LibPQ as PQ
+import Demo.Types (Artist (..), Genre (..), artist)
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
@@ -62,6 +63,14 @@ setupTypes env = do
     _ <- PQ.exec conn "CREATE TYPE composite_with_nullable AS (x int4, y int4)"
     _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
     _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
+    _ <-
+      PQ.exec
+        conn
+        "DO $$ BEGIN\n\
+        \  CREATE TYPE genre AS ENUM ('rock', 'pop', 'jazz');\n\
+        \EXCEPTION WHEN duplicate_object THEN NULL;\n\
+        \END $$"
+    _ <- PQ.exec conn "CREATE TYPE artist AS (name text, genre genre)"
     pure ()
   pure env
 
@@ -101,6 +110,18 @@ spec = beforeAllWith setupTypes $
             "SELECT $1::composite_with_nullable"
             (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
             (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            env.binary
+            val
+        result `shouldBe` Right val
+
+      it "composite with enum field binary roundtrip (Artist)" $ \env -> do
+        let val = Artist {name = "Miles", genre = Jazz}
+        result <- Pool.withResource env.pool $ \conn ->
+          execQuery
+            conn
+            "SELECT $1::artist"
+            (PostgresqlCodecs.param artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
             env.binary
             val
         result `shouldBe` Right val
