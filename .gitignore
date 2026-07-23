@@ -11,11 +11,13 @@
 !/LICENSE
 !/README.md
 !/CHANGELOG.md
+!/AGENTS.md
 !/*.cabal
 !/cabal.project
 
 # Unignore subtrees:
 !/.github/
+!/docs/
 !/design/
 !/src/
 
