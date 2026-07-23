@@ -17,6 +17,7 @@ module PostgresqlCodecs
 
     -- * Parameter
     Params (..),
+    Format (..),
     param,
 
     -- * Result sets

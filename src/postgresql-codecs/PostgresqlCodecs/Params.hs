@@ -12,6 +12,10 @@ import PostgresqlCodecs.Scalar
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
+-- | Wire format for a single parameter.
+data Format = Binary | Textual
+  deriving stock (Eq, Show)
+
 -- | Parameterized query parameters encoder.
 data Params a = Params
   { -- | Number of parameters.
@@ -21,6 +25,10 @@ data Params a = Params
     unresolvedTypes :: Set (Text, Text),
     -- | OID of each parameter. A value of 0 means the server should infer the type.
     oids :: Resolver -> [Word32],
+    -- | Wire format each parameter declares it can be encoded in. A driver may
+    -- downgrade a 'Binary' parameter to 'Textual', but must never send a
+    -- 'Textual' parameter in the binary format.
+    formats :: [Format],
     -- | Binary encoder producing one 'Maybe Write.Write' per parameter.
     -- 'Nothing' represents a NULL parameter.
     binaryEncoder :: Resolver -> a -> Either Report [Maybe Write.Write],
@@ -35,6 +43,7 @@ instance Contravariant Params where
       { count = p.count,
         unresolvedTypes = p.unresolvedTypes,
         oids = p.oids,
+        formats = p.formats,
         binaryEncoder = \r -> p.binaryEncoder r . f,
         textualEncoder = \r -> p.textualEncoder r . f
       }
@@ -45,6 +54,7 @@ instance Semigroup (Params a) where
       { count = p1.count + p2.count,
         unresolvedTypes = p1.unresolvedTypes <> p2.unresolvedTypes,
         oids = \r -> p1.oids r <> p2.oids r,
+        formats = p1.formats <> p2.formats,
         binaryEncoder = \r a -> liftA2 (<>) (p1.binaryEncoder r a) (p2.binaryEncoder r a),
         textualEncoder = \r a -> liftA2 (<>) (p1.textualEncoder r a) (p2.textualEncoder r a)
       }
@@ -55,6 +65,7 @@ instance Monoid (Params a) where
       { count = 0,
         unresolvedTypes = mempty,
         oids = const [],
+        formats = [],
         binaryEncoder = \_ _ -> Right [],
         textualEncoder = \_ _ -> Right []
       }
@@ -76,6 +87,7 @@ param scalar dimensionality nullability =
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
           oids = \resolver -> [resolveParamOid resolver],
+          formats = [if scalar.supportsBinary then Binary else Textual],
           binaryEncoder = \resolver c ->
             let binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
              in fmap (: []) (enc (Right Nothing) (\a -> fmap Just (binEnc a)) c),

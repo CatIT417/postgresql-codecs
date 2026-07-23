@@ -6,6 +6,7 @@ where
 import Control.Monad (foldM, forM)
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
+import Data.List (zipWith4)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -102,16 +103,11 @@ execQuery ::
 execQuery conn sql ps result isBinaryEncodingAllowed input = do
   let unresolved = ps.unresolvedTypes <> PostgresqlCodecs.unresolvedTypes result
   resolver <- buildResolver conn unresolved
-  case parameterEncoder resolver input of
+  case (,) <$> ps.binaryEncoder resolver input <*> ps.textualEncoder resolver input of
     Left err -> pure (Left err)
-    Right encodedValues -> do
+    Right (binaryValues, textualValues) -> do
       let paramList =
-            zipWith
-              ( \oid mEncodedValue ->
-                  fmap (\encodedValue -> (Pq.Oid (fromIntegral oid), encodedValue, parameterFormat)) mEncodedValue
-              )
-              (ps.oids resolver)
-              encodedValues
+            zipWith4 selectParameter (ps.oids resolver) ps.formats binaryValues textualValues
       mPgResult <- Pq.execParams conn sql paramList Pq.Binary
       case mPgResult of
         Nothing -> do
@@ -211,11 +207,23 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
     queryError pgResult = do
       mErr <- Pq.resultErrorMessage pgResult
       pure $ Left $ maybe (fromString "Query failed") (fromString . Text.unpack . Text.Encoding.decodeUtf8) mErr
-    parameterEncoder resolver =
-      if isBinaryEncodingAllowed
-        then fmap (fmap (fmap Write.toByteString)) . ps.binaryEncoder resolver
-        else fmap (fmap (fmap (Text.Encoding.encodeUtf8 . TextBuilder.toText))) . ps.textualEncoder resolver
-    parameterFormat =
-      if isBinaryEncodingAllowed
-        then Pq.Binary
-        else Pq.Text
+
+    -- The global toggle can only downgrade a parameter to text: a parameter
+    -- that declares it cannot do binary is never sent in the binary format.
+    effectiveFormat declaredFormat =
+      if not isBinaryEncodingAllowed
+        then PostgresqlCodecs.Textual
+        else declaredFormat
+
+    -- Pick the encoding of one parameter. 'Nothing' in both encoded lists means
+    -- a NULL parameter and stays 'Nothing'.
+    selectParameter oid declaredFormat mBinaryValue mTextualValue =
+      case effectiveFormat declaredFormat of
+        PostgresqlCodecs.Binary ->
+          fmap
+            (\value -> (Pq.Oid (fromIntegral oid), Write.toByteString value, Pq.Binary))
+            mBinaryValue
+        PostgresqlCodecs.Textual ->
+          fmap
+            (\value -> (Pq.Oid (fromIntegral oid), Text.Encoding.encodeUtf8 (TextBuilder.toText value), Pq.Text))
+            mTextualValue

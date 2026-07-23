@@ -13,6 +13,7 @@ import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Float8
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
+import qualified PtrPoker.Write as Write
 import Test.Hspec
 import Prelude
 
@@ -23,6 +24,20 @@ data Color = Red | Green deriving (Eq, Ord, Show)
 
 colorScalar :: PostgresqlCodecs.Scalar Color
 colorScalar = PostgresqlCodecs.enum "" "param_color" [("red", Red), ("green", Green)]
+
+-- ---------------------------------------------------------------------------
+-- Scalar that declares it cannot be encoded in binary
+
+-- | An @int4@ scalar that declares @supportsBinary = False@ and whose binary
+-- encoder deliberately emits 8 bytes instead of 4. Sending it in binary would
+-- make the server reject the bind parameter, so any test that passes with it
+-- proves the parameter was actually sent in the textual format.
+textOnlyInt4 :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
+textOnlyInt4 =
+  PostgresqlCodecs.standard
+    { PostgresqlCodecs.supportsBinary = False,
+      PostgresqlCodecs.binaryEncoder = \_ _ -> Right (Write.bWord64 0)
+    }
 
 setupTypes :: SpecHook.Env -> IO SpecHook.Env
 setupTypes env = do
@@ -127,3 +142,31 @@ spec = beforeAllWith setupTypes $ do
           env.binary
           (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
+
+    it "formats are populated from supportsBinary and concatenated" $ \_env -> do
+      let ps :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
+          ps =
+            contramap fst (PostgresqlCodecs.param textOnlyInt4 PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          emptyPs :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
+          emptyPs = mempty
+      ps.formats `shouldBe` [PostgresqlCodecs.Textual, PostgresqlCodecs.Binary]
+      emptyPs.formats `shouldBe` []
+
+    it "supportsBinary=False parameter stays textual alongside a binary parameter" $ \env -> do
+      let ps =
+            contramap fst (PostgresqlCodecs.param textOnlyInt4 PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          cols =
+            (,)
+              <$> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::int4, $2::int4"
+          ps
+          (PostgresqlCodecs.oneRow cols)
+          env.binary
+          (PostgresqlTypes.Int4.fromInt32 7, PostgresqlTypes.Int4.fromInt32 9)
+      result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 7, PostgresqlTypes.Int4.fromInt32 9)
