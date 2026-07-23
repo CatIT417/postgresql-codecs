@@ -1,5 +1,6 @@
 module IntegrationTest.ResultSpec (spec) where
 
+import Data.Int (Int32)
 import qualified Data.Pool as Pool
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
@@ -132,6 +133,76 @@ spec = do
           env.binary
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
+
+    it "refine succeeds on oneRow" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 42::int4"
+          mempty
+          ( PostgresqlCodecs.refine
+              (\value -> Right (PostgresqlTypes.Int4.toInt32 value * 2))
+              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          )
+          env.binary
+          ()
+      result `shouldBe` Right (84 :: Int32)
+
+    it "refine fails on oneRow" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 42::int4"
+          mempty
+          ( PostgresqlCodecs.refine
+              (\_ -> Left "boom")
+              (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          )
+          env.binary
+          ()
+      result `shouldBe` (Left "boom" :: Either PostgresqlCodecs.Report Int32)
+
+    it "refine succeeds on someRow" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 42::int4"
+          mempty
+          ( PostgresqlCodecs.refine
+              (Right . fmap PostgresqlTypes.Int4.toInt32)
+              (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          )
+          env.binary
+          ()
+      result `shouldBe` Right (Just (42 :: Int32))
+
+    it "refine on someRow applies to the no-row value too" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 42::int4 WHERE false"
+          mempty
+          ( PostgresqlCodecs.refine
+              (Right . maybe 0 PostgresqlTypes.Int4.toInt32)
+              (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          )
+          env.binary
+          ()
+      result `shouldBe` Right (0 :: Int32)
+
+    it "refine fails on someRow" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT 42::int4"
+          mempty
+          ( PostgresqlCodecs.refine
+              (\_ -> Left "boom")
+              (PostgresqlCodecs.someRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result (Maybe PostgresqlTypes.Int4))
+          )
+          env.binary
+          ()
+      result `shouldBe` (Left "boom" :: Either PostgresqlCodecs.Report Int32)
 
     it "manyRows returns multiple rows" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->

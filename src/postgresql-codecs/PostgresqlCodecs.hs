@@ -25,6 +25,8 @@ module PostgresqlCodecs
     someRow,
     manyRows,
     rowsAffected,
+    refine,
+    unresolvedTypes,
 
     -- ** Result set columns
     Columns (..),

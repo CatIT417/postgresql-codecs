@@ -21,15 +21,6 @@ import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 import Prelude
 
--- | Extract the transitive set of runtime-resolvable @(schema, name)@ pairs
--- referenced by a result-set decoder.
-resultUnresolvedTypes :: PostgresqlCodecs.Result a -> Set (Text.Text, Text.Text)
-resultUnresolvedTypes = \case
-  PostgresqlCodecs.RowsAffected _ -> Set.empty
-  PostgresqlCodecs.MaybeRow cols _ _ -> cols.unresolvedTypes
-  PostgresqlCodecs.OneRow cols -> cols.unresolvedTypes
-  PostgresqlCodecs.ManyRows cols _ _ _ -> cols.unresolvedTypes
-
 -- | Build a real 'PostgresqlCodecs.Resolver' by looking the referenced types up
 -- in the live catalog. An empty set skips the query entirely; anything the
 -- catalog cannot resolve defaults to @TypeOids 0 0@.
@@ -109,7 +100,7 @@ execQuery ::
   params ->
   IO (Either PostgresqlCodecs.Report result)
 execQuery conn sql ps result isBinaryEncodingAllowed input = do
-  let unresolved = ps.unresolvedTypes <> resultUnresolvedTypes result
+  let unresolved = ps.unresolvedTypes <> PostgresqlCodecs.unresolvedTypes result
   resolver <- buildResolver conn unresolved
   case parameterEncoder resolver input of
     Left err -> pure (Left err)
@@ -151,10 +142,10 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
             withValidatedColumns cols pgResult do
               nrows <- Pq.ntuples pgResult
               if nrows == 0
-                then pure (Right noRow)
-                else fmap (fmap toRow) (decodeRow resolver cols pgResult (Pq.Row 0))
+                then pure noRow
+                else fmap (>>= toRow) (decodeRow resolver cols pgResult (Pq.Row 0))
           _ -> queryError pgResult
-      PostgresqlCodecs.OneRow cols ->
+      PostgresqlCodecs.OneRow cols toRow ->
         case status of
           Pq.TuplesOk ->
             withValidatedColumns cols pgResult do
@@ -167,7 +158,7 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
                         ( "Expected 1 row, got "
                             <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
                         )
-                else decodeRow resolver cols pgResult (Pq.Row 0)
+                else fmap (>>= toRow) (decodeRow resolver cols pgResult (Pq.Row 0))
           _ -> queryError pgResult
       PostgresqlCodecs.ManyRows cols initAcc foldRow fin ->
         case status of
