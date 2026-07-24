@@ -13,7 +13,14 @@ import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 
 -- | Wire format for a single parameter.
-data Format = Binary | Textual
+data Format
+  = -- | The parameter's binary encoder produces the value; the resolver
+    -- matters here, since binary payloads embed OIDs (e.g. in array
+    -- headers).
+    Binary
+  | -- | The parameter's textual encoder produces the value. The wire
+    -- format embeds no OIDs, so the 'Resolver' argument is ignored.
+    Textual
   deriving stock (Eq, Show)
 
 -- | Parameterized query parameters encoder.

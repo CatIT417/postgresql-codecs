@@ -2,68 +2,79 @@
 
 ## Project Overview
 
-`postgresql-codecs` is a **driver-agnostic PostgreSQL codecs library** written in **Haskell**. It provides composable encoders and decoders for mapping between Haskell types and PostgreSQL's binary and textual wire formats.
+`postgresql-codecs` is a **driver-agnostic PostgreSQL codecs library** written in **Haskell**. It provides composable encoders and decoders for mapping between Haskell types and PostgreSQL's binary and textual wire formats. The library ships no I/O of its own; driver integration requires only a small `ConsumesColumns` instance.
 
-The library is structured in layers:
+The library is built from five composable layers, described in the `PostgresqlCodecs` module haddock:
 
-1. **`postgresql-types-algebra`** (sub-package under `postgresql-types-algebra-0.1/`) — Defines the core `IsScalar` type class algebra, decoding/encoding error types, and range/multirange evidence classes. This is a lightweight, separate package meant to be depended on by libraries that define their own PostgreSQL type mappings.
-2. **`postgresql-codecs`** (main package) — Builds on top of the algebra and the `postgresql-types` ecosystem to provide:
-   - `Scalar a` — Codecs for individual PostgreSQL scalar types (binary + textual encode/decode).
-   - `Columns a` — Result-set column decoders.
-   - `Params a` — Query parameter encoders.
-   - `Result a` — High-level result decoders (rows affected, zero-or-one, exactly-one, many rows).
-   - `Fields a b` — Composite type field codecs (used with `composite` to build custom `Scalar`s).
-   - `Nullability a b` — Nullable / non-nullable wrappers.
-   - `Dimensionality scalar vec` — Array dimensionality combinators (`d0`, `d1`, `d2`).
+1. `Scalar a` — codec for a single PostgreSQL scalar type: schema/type name, optionally-static base/array OIDs, a binary-support flag, and binary + textual encoder/decoder pairs. Built via `standard` (from a `postgresql-types` `IsScalar` instance), `enum`, or `composite`.
+2. `Dimensionality scalar vec` — pass-through (`d0`) or N-dimensional array wrapping (`d1`–`d6`), parameterized by a `Dimension` (e.g. `vector`, for any `Data.Vector.Generic.Vector`).
+3. `Nullability a b` — `nullable` (wraps in `Maybe`) or `nonNullable` (rejects NULL with a `Report`).
+4. `Columns a` / `Params a` — result-set column decoder and query-parameter encoder, built per-column/per-parameter via `column` / `param`.
+5. `Result a` — full result-set decoding strategy: `oneRow`, `someRow`, `manyRows`, `rowsAffected`, with a `refine` combinator for post-hoc validation.
 
-The library does **not** talk to PostgreSQL directly; it produces bytes and parsers that can be plugged into any PostgreSQL driver.
+A sixth, cross-cutting piece, added to fix a class of OID-guessing bugs: **`Resolver`** (`PostgresqlCodecs.Resolver`). Codecs that reference PostgreSQL types whose OIDs can't be known statically (`enum`, `composite`, and `standard` scalars like `citext`/`hstore` whose `IsScalar` instance has no static OID) advertise those types via `unresolvedTypes :: Set (Text, Text)`. A driver collects the union of `unresolvedTypes` across the `Params` and `Result` it's about to use, resolves it against the server catalogue if non-empty, and passes the resulting `Resolver` into `Columns.decoder`/`oids` and `Params.oids`/`binaryEncoder`/`textualEncoder`. **The full contract is documented in the `PostgresqlCodecs` module haddock (`src/postgresql-codecs/PostgresqlCodecs.hs`) — read it before implementing a driver.** Do not re-derive it from source; the haddock is authoritative and this file only summarizes it.
+
+`Fields a b` (composite-type field codecs, built with `field` and consumed by `composite`) is the one layer not in the five-layer list above but is part of the same stack.
+
+Also present: `Report` (`PostgresqlCodecs.Report`) — the library's single structured error type (`message`, `suggestion`, `[(Text, Text)]` details), used everywhere a decode/encode can fail. There is no separate `EncodingError`/`DecodingError` type.
 
 ## Project Structure
 
 ```
 .
-├── cabal.project                          # Cabal project configuration
-├── cabal.project.local                    # Local compiler override (optional, usually commented out)
-├── postgresql-codecs.cabal                # Main package definition
-├── build.bash                             # Local build script (sourced from ~/bin/build-cabal-project)
-├── notes.md                               # Design notes and TODOs for the author
+├── cabal.project                  # Cabal project config (tests: True — see Build commands)
+├── postgresql-codecs.cabal        # Package definition: library, library demo, test-suite integration-test
+├── README.md, LICENSE, AGENTS.md
+├── docs/
+│   └── tickets.md                 # Ticket log for the Resolver work (historical context, not living docs)
 │
-├── postgresql-types-algebra-0.1/
-│   ├── postgresql-types-algebra.cabal     # Sub-package: core algebra
-│   └── src/library/
-│       └── PostgresqlTypes/Algebra.hs     # IsScalar, IsRangeElement, DecodingError, etc.
+├── .github/workflows/             # format-and-test.yaml, release.yaml, deploy-docs-to-pages.yaml
 │
 └── src/
-    ├── postgresql-codecs/
-    │   ├── PostgresqlCodecs.hs            # Main re-export module
-    │   ├── PostgresqlCodecs/Prelude.hs    # Custom prelude (NoImplicitPrelude)
-    │       ├── PostgresqlCodecs/Scalar.hs     # Scalar type + standard/enum/composite constructors
-    │   ├── PostgresqlCodecs/Columns.hs    # Columns result decoder + driver port type classes
-    │   ├── PostgresqlCodecs/Params.hs     # Params encoder (partially TODO)
-    │   ├── PostgresqlCodecs/Result.hs     # Result cardinality combinators
-    │   ├── PostgresqlCodecs/Fields.hs     # Composite field codecs
-    │   ├── PostgresqlCodecs/Nullability.hs# nullable / nonNullable
-    │   ├── PostgresqlCodecs/Dimensionality.hs # Array dimension combinators (d0, d1, d2)
-    │   ├── PostgresqlCodecs/Dimension.hs  # Dimension abstraction (e.g., vector)
-    │   ├── PostgresqlCodecs/Dimensionality/Writes.hs # Array header binary writes
-    │   ├── PostgresqlCodecs/DecodingError.hs
-    │   └── PostgresqlCodecs/EncodingError.hs
+    ├── postgresql-codecs/                     # The library (hs-source-dirs of the main library component)
+    │   ├── PostgresqlCodecs.hs                # Public re-export module; documents the Resolver contract
+    │   └── PostgresqlCodecs/
+    │       ├── Prelude.hs                     # Custom prelude (NoImplicitPrelude); import this, not base Prelude
+    │       ├── Report.hs                      # Report — the one structured error type
+    │       ├── Resolver.hs                    # TypeOids, Resolver — the OID-resolution contract
+    │       ├── Scalar.hs                      # Scalar, standard/enum/composite, elementOid/declaredOid
+    │       ├── Fields.hs                      # Fields — composite-type field codecs, field, composite
+    │       ├── Nullability.hs                 # Nullability, nullable, nonNullable
+    │       ├── Dimension.hs                   # Dimension — vector, the array-representation abstraction
+    │       ├── Dimensionality.hs              # Dimensionality, d0–d6
+    │       ├── Dimensionality/Writes.hs        # Binary array-header writes, shared by Dimensionality
+    │       ├── Columns.hs                     # Columns, ConsumesColumns, column
+    │       ├── Params.hs                      # Params, Format, param
+    │       └── Result.hs                      # Result, oneRow/someRow/manyRows/rowsAffected, refine
     │
-    └── demo/
-        ├── Demo/Types.hs                  # Demo re-export module
-        ├── Demo/Types/Genre.hs            # Example enum scalar
-        └── Demo/Types/Artist.hs           # Example composite scalar
+    ├── demo/                                  # library demo — a worked example (enum + composite scalars)
+    │   └── Demo/Types.hs, Demo/Types/Artist.hs, Demo/Types/Genre.hs
+    │
+    └── integration-test/                      # test-suite integration-test (hspec + testcontainers)
+        ├── Spec.hs                            # {-# OPTIONS_GHC -F -pgmF hspec-discover #-}
+        └── IntegrationTest/
+            ├── SpecHook.hs                    # Container/pool lifecycle, one-time schema DDL, runs specs twice
+            ├── Integrations/
+            │   ├── Pq.hs                      # The libpq driver adapter — reference execQuery + Resolver builder
+            │   └── Pq/RowDecoder.hs           # Threads a column-index cursor through ConsumesColumns
+            ├── ColumnsSpec.hs, ParamsSpec.hs, FieldsSpec.hs, ResultSpec.hs,
+            │   ScalarSpec.hs, DimensionSpec.hs, DimensionalitySpec.hs, NullabilitySpec.hs
 ```
+
+There is no `postgresql-types-algebra-0.1/` directory in this tree. `postgresql-types-algebra` and `postgresql-types` are ordinary version-bounded Hackage dependencies (`^>=0.1` each) declared in `postgresql-codecs.cabal`; `postgresql-types-algebra` supplies the `IsScalar` class algebra that `standard` builds on, and `postgresql-types` supplies the concrete standard-type instances, which `PostgresqlCodecs` re-exports wholesale (`module PostgresqlTypes`) for convenience.
+
+Several files exist in the working tree but are **not tracked in git** — the repo uses a gitignore whitelist (see Development Conventions below) and these are the author's local conveniences: `build.bash`, `notes.md`, `cabal.project.local`, `.vscode/`. Don't assume they're present in a fresh checkout.
 
 ## Build and Test Commands
 
 ### Standard Cabal workflow
 
 ```bash
-# Configure and build the project
+# Build the library only
 cabal build
 
-# Build the demo library too
+# Build everything: library, demo library, and the integration-test suite
+# (cabal.project sets `tests: True`, so this also compiles the test-suite)
 cabal build all
 
 # Generate Haddock documentation
@@ -73,59 +84,54 @@ cabal haddock
 cabal haddock --open
 ```
 
-### Local build script
+### Running the integration test suite
 
-The repo includes a `build.bash` script that sources `~/bin/build-cabal-project` (a personal script not checked into the repo). The script currently enables:
-
-- `preformat=true` — Code formatting (likely `ormolu` or `fourmolu`)
-- `lint=true` — Linting (likely `hlint`)
-- `compile=true` — Compilation
-- `doc=true` — Documentation generation
-
-If you have the author's `build-cabal-project` script installed, simply run:
+There **is** a test suite: `test-suite integration-test` (hspec + `testcontainers`/`testcontainers-postgresql`) under `src/integration-test/`, discovered via `hspec-discover`.
 
 ```bash
-./build.bash
+# Requires Docker: testcontainers pulls and starts a postgres:18 container.
+cabal test integration-test
+
+# Focus on specific examples (hspec's --match, forwarded via cabal's test-options):
+cabal test integration-test --test-options='--match "<pattern>"'
 ```
 
-### VS Code integration
+Do **not** attempt to run this suite without Docker available — it will fail to start the container. If you can't run Docker in your environment, say so rather than silently skipping verification.
 
-A `.vscode/tasks.json` is present. The default build task (`Cmd+Shift+B` on macOS / `Ctrl+Shift+B` on Linux/Windows) runs `./build.bash`.
+Test harness shape, if you need to touch it:
+- `IntegrationTest.SpecHook` owns the container, a `resource-pool` connection pool, and the **one-time** test schema DDL (enum/composite `CREATE TYPE` statements), created once in `aroundAll` before the pool is handed to the spec tree — so statements need no `IF NOT EXISTS` guards. `hook` then runs the **entire spec tree twice**, `parallel`-ized, once under `describe "Binary format"` and once under `describe "Text format"`, toggling which wire format parameters are sent in.
+- `IntegrationTest.Integrations.Pq` is the libpq driver adapter and the reference `ConsumesColumns` implementation. Its `execQuery` is also the reference example of implementing the `Resolver` contract: it unions `Params.unresolvedTypes` with the `Result`'s `unresolvedTypes`, and if non-empty, runs one parameterized query against `pg_type` (via `to_regtype`) to build a `Map (Text, Text) TypeOids`, wrapped as a `Resolver` defaulting to `TypeOids 0 0`. **This resolver is rebuilt from scratch on every `execQuery` call** — deliberately, for harness simplicity. This is explicitly **not** the pattern to copy in a real driver; see the `PostgresqlCodecs` module haddock's caching guidance (cache per connection).
+- `IntegrationTest.Integrations.Pq.RowDecoder` threads a column-index cursor through a row so `ConsumesColumns` can consume columns left-to-right.
 
-### Testing
+### Local build script
 
-**There is no test suite stanza in the `.cabal` file yet.** The project is under active development and several modules contain `error "TODO"` placeholders (e.g., textual array encoding/decoding, 2D arrays, `Params.param`).
-
-CI still passes `--qc-max-success=10000` to the test runner, implying that tests may be added via doctest or a future test-suite. When adding tests, use `tasty` + `tasty-quickcheck` or `tasty-hunit` to match the author's typical Hackage workflow.
+`build.bash` sources `~/bin/build-cabal-project`, a personal script **not checked into this repo**. It is not usable by an agent without that script present — use `cabal` directly instead (commands above). The default VS Code build task (`.vscode/tasks.json`, itself untracked) also just runs `./build.bash`.
 
 ## Code Style Guidelines
 
 ### Language extensions
 
-All language extensions are declared **centrally in the `.cabal` file** (`default-extensions` under the `common base` stanza). Do not add `LANGUAGE` pragmas to individual files unless it is truly file-specific.
+All language extensions are declared **centrally in the `.cabal` file** (`default-extensions` under the `common base` stanza, shared by the library, `demo`, and `integration-test` via `import: base`). There are no per-file `LANGUAGE` pragmas anywhere in `src/` — keep it that way; add new extensions to the common stanza instead.
 
-Notable enabled extensions include:
+Notable enabled extensions: `NoImplicitPrelude`, `OverloadedRecordDot` + `NoFieldSelectors`, `StrictData`, `DerivingStrategies`/`DerivingVia`, `LambdaCase`, `BlockArguments`, `TypeApplications`, `RankNTypes`, `TypeFamilies`, `GADTs`.
 
-- `NoImplicitPrelude` — Always import `PostgresqlCodecs.Prelude` instead of `Prelude`.
-- `OverloadedRecordDot`, `NoFieldSelectors` — Use record dot syntax (`scalar.baseOid`).
-- `StrictData` — Record fields are strict by default.
-- `DerivingStrategies`, `DerivingVia` — Explicit derivation strategies.
-- `LambdaCase`, `BlockArguments`, `TypeApplications` — Modern syntax.
-- `RankNTypes`, `TypeFamilies`, `GADTs` — Advanced types used in the public API.
+**Gotcha:** `Columns.decoder :: Resolver -> (forall f. ConsumesColumns f => f a)` is a rank-2 field. `OverloadedRecordDot`/`getField` do not work on a polymorphic field like this — you must access it by record pattern matching (`PostgresqlCodecs.Columns {decoder} <- ...` or `case columns of Columns {decoder} -> ...`), never `columns.decoder`. See `IntegrationTest.Integrations.Pq.decodeRow` for the working pattern.
 
 ### Custom Prelude
 
-Every module in the library should start with:
+Every module of the **library** (`src/postgresql-codecs/`) starts with:
 
 ```haskell
 import PostgresqlCodecs.Prelude
 ```
 
-The custom prelude re-exports a curated set of base modules, `profunctors`, `invariant`, `lawful-conversions`, `QuickCheck`, `text-builder`, and common data types (`Text`, `Vector`, `UUID`, etc.). It explicitly hides list-traversal functions in favor of `Foldable`/`Traversable` ones.
+`PostgresqlCodecs.Prelude` (itself `NoImplicitPrelude`-exempt, being the prelude) re-exports a curated set of `base` modules plus `profunctors`, `lawful-conversions`, `QuickCheck`, `text-builder`, and common data types (`Text`, `Vector`, `UUID`, `TextBuilder`). It hides list-specific traversal functions in favor of the `Foldable`/`Traversable` versions.
+
+This convention applies **only to the library**. `src/demo/` uses `rerebase` with a small `Prelude hiding (...)`, and `src/integration-test/` imports plain `Prelude` throughout — both are still under the cabal-wide `NoImplicitPrelude` extension, so every module, including test modules, needs an explicit prelude import of some kind, just not necessarily `PostgresqlCodecs.Prelude`.
 
 ### GHC warning pragmas
 
-Many implementation modules start with a large `OPTIONS_GHC` pragma that silences common warnings during active development:
+Some of the actively-evolving implementation modules — currently `Columns.hs`, `Params.hs`, `Resolver.hs`, `Scalar.hs` — start with a warning-silencing pragma:
 
 ```haskell
 {-# OPTIONS_GHC -Wno-unused-binds -Wno-unused-imports -Wno-name-shadowing
@@ -134,38 +140,18 @@ Many implementation modules start with a large `OPTIONS_GHC` pragma that silence
     -Wno-missing-signatures #-}
 ```
 
-This is intentional while the API is still stabilizing. Do **not** remove these pragmas unless you are also filling in the missing implementations and adding type signatures.
+This is intentional while these modules keep changing. Don't remove it as a drive-by cleanup; remove it only alongside actually tightening up the module (adding signatures, resolving the shadowing, etc.).
 
 ### Module naming
 
-- Public API: `PostgresqlCodecs` (single re-export module).
-- Internal modules: `PostgresqlCodecs.<Concept>`.
+- Public API: `PostgresqlCodecs` — the single exposed library module; everything else in the library is `other-modules`.
+- Internal library modules: `PostgresqlCodecs.<Concept>`.
 - Demo code: `Demo.Types.<Name>`.
+- Test modules: `IntegrationTest.<Concept>Spec` (hspec, discovered by name convention), driver adapter code under `IntegrationTest.Integrations.<Driver>`.
 
-### Error types
+### Error type
 
-Encoding and decoding failures use structured error records (`EncodingError` and `DecodingError`) rather than plain `String` or `Text`. When propagating errors, populate all relevant fields (`message`, `details`, `inputLocation`, `failingInput`, `expectedInputs`, etc.).
-
-## Testing Instructions
-
-As noted above, there is currently no executable test suite. To verify correctness:
-
-1. **Build everything**:
-   ```bash
-   cabal build all
-   ```
-
-2. **Check that the demo library compiles** — it exercises `enum` and `composite` usage:
-   ```bash
-   cabal build demo
-   ```
-
-3. **Run Haddock** to ensure documentation is valid:
-   ```bash
-   cabal haddock
-   ```
-
-4. **When adding tests**, create a `test-suite` stanza in `postgresql-codecs.cabal` and place test modules under a new `test/` directory. The CI reusable workflow expects tests to accept `--qc-max-success=N`.
+Encoding and decoding failures use one structured error record, `Report` (`PostgresqlCodecs.Report`), with `message :: Text`, `suggestion :: Text`, and `details :: [(Text, Text)]`. There is no separate `EncodingError`/`DecodingError` pair. `Report` is explicitly documented as "not intended for pattern matching, only for rendering error messages" — treat it as an opaque, renderable failure, not a typed error hierarchy to switch on. Helpers: `toText`, `suggest`, `addDetail`/`addDetailWithKey`, and the `IsReport`/`IsDetail` ports for building `Report`s from your own error types.
 
 ## CI / CD and Release Process
 
@@ -173,28 +159,21 @@ As noted above, there is currently no executable test suite. To verify correctne
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `format-and-test.yaml` | Push to `master`, PRs | Format check, cabal file check, docs generation, build on GHC 9.2 and latest |
-| `release.yaml` | Push to `supermajor`, `major`, `minor`, `patch` branches | Runs format-and-test, then releases to Hackage |
-| `deploy-docs-to-pages.yaml` | Push to `master`, manual | Deploys Haddock to GitHub Pages |
+| `format-and-test.yaml` | Push to `master`, PRs, or called by `release.yaml` | Format check, cabal file check, docs generation, build on GHC 9.2 and latest (`--qc-max-success=10000`, doctest skipped) |
+| `release.yaml` | Push to `supermajor`, `major`, `minor`, `patch` branches | Runs `format-and-test`, then releases to Hackage (tags not prefixed with `v`) |
+| `deploy-docs-to-pages.yaml` | Push to `main` or `master`, or manual `workflow_dispatch` | Deploys Haddock to GitHub Pages |
 
 All workflows reuse actions from `nikita-volkov/haskell-hackage-lib-github-actions-workflows@v4`.
 
 ### Releasing
 
-The project uses **branch-based versioning**:
-
-- `supermajor` — Major API breakage
-- `major` — Significant feature release
-- `minor` — Backward-compatible additions
-- `patch` — Bug fixes
-
-Pushing to any of these branches triggers the release workflow, which uploads the package to Hackage and tags the commit (tags are **not** prefixed with `v`).
+Branch-based versioning: pushing to `supermajor` / `major` / `minor` / `patch` triggers a release to Hackage of the corresponding version bump.
 
 ## Development Conventions
 
 ### Gitignore strategy
 
-The project uses a **whitelist approach** in `.gitignore`:
+The project uses a **whitelist approach** in `.gitignore` — everything is ignored except an explicit allowlist:
 
 ```gitignore
 /*
@@ -202,36 +181,30 @@ The project uses a **whitelist approach** in `.gitignore`:
 !/LICENSE
 !/README.md
 !/CHANGELOG.md
+!/AGENTS.md
 !/*.cabal
 !/cabal.project
 !/.github/
+!/docs/
 !/design/
 !/src/
 ```
 
-Only explicitly listed files and directories are tracked. If you add a new top-level file or directory (e.g., `test/`), you **must** add it to `.gitignore`.
+If you add a new top-level file or directory that should be tracked, you **must** add it to this whitelist, or `git` will silently ignore it. (`CHANGELOG.md` and `design/` are allowlisted but don't currently exist — that's fine, the whitelist just permits them if created.)
 
 ### Design notes
 
-`notes.md` contains the author's private design journal (renaming ideas, layering decisions, statement-mapping DSL experiments). It is not documentation; treat it as a scratchpad.
+`notes.md` (untracked) contains the author's private design journal. Not documentation; a scratchpad.
+
+`docs/tickets.md` (tracked) is the ticket log for the `Resolver` work that this file documents — useful historical/motivational context for *why* the OID-resolution design looks the way it does, but not living API documentation; don't treat it as a source of current truth about the codebase the way you would module haddock.
 
 ### Dependency bounds
 
-The `.cabal` file specifies **tight version bounds** (e.g., `invariant ^>=0.6.4`, `ptr-poker ^>=0.1.2.16`). When adding or upgrading dependencies, follow this convention and test with both the minimum and maximum allowed versions.
-
-### Work-in-progress markers
-
-Several parts of the codebase are incomplete and marked with `error "TODO"`:
-
-- `Params.param` — Parameter encoding is not yet implemented.
-- `Dimensionality.d2` — 2D array support is not yet implemented.
-- Textual encoding/decoding for arrays and composites — Several `error "TODO"` placeholders in `Dimensionality`, `Fields`, and `Scalar`.
-
-When working on these, replace the `error` with a real implementation and add corresponding tests.
+The `.cabal` file specifies **tight version bounds** (e.g. `invariant ^>=0.6.4`, `ptr-poker ^>=0.1.2.16`). Follow this convention when adding or upgrading dependencies.
 
 ## Security Considerations
 
-- The library performs **direct pointer operations** via `ptr-peeker` and `ptr-poker` for binary encoding/decoding. Ensure bounds are respected; the array decoders already validate dimension counts, base OIDs, and lower bounds before reading elements.
-- `enum` and `composite` constructors do not sanitize schema or type names before embedding them in error messages — this is fine because they are programmer-supplied constants, not user input.
-- The textual decoders use `attoparsec`. Be mindful of parser complexity when adding new textual formats (e.g., arrays in textual format could be recursive).
-- `NoImplicitPrelude` plus a custom prelude means that accidental imports of the wrong `Prelude` can introduce subtle behavior differences. Always use `PostgresqlCodecs.Prelude` in library code.
+- The library performs **direct pointer operations** via `ptr-peeker` and `ptr-poker` for binary encoding/decoding. Bounds are validated before reads: dimension counts, base OIDs, and array lower bounds are checked before element decoding.
+- `enum` and `composite` constructors do not sanitize schema or type names before embedding them in `Report` details or in `unresolvedTypes` — this is fine because these names are programmer-supplied constants, not user input. If you write a custom `Resolver`/driver that turns `unresolvedTypes` into a catalogue query, follow the reference `IntegrationTest.Integrations.Pq.buildResolver`'s lead and pass names as bound query parameters, not string-interpolated SQL.
+- The textual decoders use `attoparsec`. Be mindful of parser complexity when extending textual formats (composite-field parsing in `Fields.hs` already handles nested quoting/escaping recursively).
+- `NoImplicitPrelude` plus a custom prelude means accidental imports of the wrong `Prelude` can introduce subtle behavior differences. Library code should always use `PostgresqlCodecs.Prelude` (see Custom Prelude above for the exceptions in `demo`/`integration-test`).

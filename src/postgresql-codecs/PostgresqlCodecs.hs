@@ -7,6 +7,42 @@
 -- 3. 'Nullability' — whether values may be NULL ('nullable' or 'nonNullable').
 -- 4. 'Columns' \/ 'Params' — result-set column decoder and query parameter encoder.
 -- 5. 'Result' — full result-set decoding strategy.
+--
+-- = Resolving type OIDs
+--
+-- Codecs built from 'enum' or 'composite', and 'standard' scalars whose
+-- @IsScalar@ instance has no static OID (e.g. @citext@, @hstore@), reference
+-- PostgreSQL types whose OIDs this library cannot know statically. Such a
+-- codec advertises the types it needs resolved via its
+-- @unresolvedTypes :: Set (Text, Text)@ field, a set of @(schemaName,
+-- typeName)@ pairs. An empty @schemaName@ denotes the default schema, to be
+-- resolved through the server's @search_path@. A driver author owes the
+-- library the following:
+--
+-- 1. Before executing a statement, collect the union of the
+--    @unresolvedTypes@ of everything about to be used — for this library's
+--    shape that is @params.unresolvedTypes <> Result.unresolvedTypes
+--    result@. An empty set means zero catalogue round-trips, which is the
+--    common case for codecs built only from statically-known 'standard'
+--    scalars.
+-- 2. If that set is non-empty, look the types up in the server catalogue
+--    (e.g. via @to_regtype@) and build ONE 'Resolver' from the result.
+-- 3. Pass that single 'Resolver' to every resolver-parameterized field
+--    touched for the statement: @Columns.decoder@, @Columns.oids@,
+--    @Params.oids@, and @Params.binaryEncoder@\/@textualEncoder@.
+-- 4. Rely on 'Resolver' being total: it returns @TypeOids 0 0@ for anything
+--    it cannot resolve, @0@ being PostgreSQL's \"unspecified\" sentinel. The
+--    server then either infers the type or reports an error naming it — the
+--    library itself has no failure path for an unresolvable type.
+-- 5. Cache resolutions, ideally per connection (OIDs of user-defined types
+--    are stable within a database but differ across databases). The
+--    integration test harness in this repository re-queries @pg_type@ on
+--    every query for simplicity; that is NOT the pattern to copy for
+--    performance.
+--
+-- The textual wire format embeds no OIDs, so textual codecs ignore their
+-- 'Resolver' argument; they still take one so drivers can treat both wire
+-- formats uniformly.
 module PostgresqlCodecs
   ( -- * Report
     Report (..),
