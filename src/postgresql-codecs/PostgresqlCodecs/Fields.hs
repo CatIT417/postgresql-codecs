@@ -76,6 +76,22 @@ instance Profunctor Fields where
         textualDecoder = \r -> fmap g (textualDecoder r)
       }
 
+-- | Report for when a composite field's wire OID contradicts its resolved, statically or
+-- runtime-known declared OID.
+fieldOidMismatchReport :: Word32 -> Int32 -> Report
+fieldOidMismatchReport expectedOid actualOid =
+  Report
+    { message = "Field OID mismatch",
+      suggestion = "",
+      details =
+        [ ("details", "Expected OID " <> TextBuilder.toText (TextBuilder.decimal expectedOid) <> ", but got " <> TextBuilder.toText (TextBuilder.decimal (fromIntegral actualOid :: Word32))),
+          ("inputLocation", "[field-oid]"),
+          ("inputOffset", "0"),
+          ("failingInput", TextBuilder.toText (TextBuilder.decimal (fromIntegral actualOid :: Word32))),
+          ("expectedInputs", TextBuilder.toText (TextBuilder.decimal expectedOid))
+        ]
+    }
+
 -- | Build a single composite field codec from a scalar, dimensionality, and nullability.
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
@@ -99,14 +115,25 @@ field scalar dimensionality nullability =
                   )
                   value,
           binaryDecoder = \resolver -> do
-            _fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
+            fieldOid <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
-            case contentSize of
-              -1 -> pure nullability.onNull
-              _ ->
-                fmap
-                  (fmap nullability.onNonNull)
-                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder (elementOid scalar resolver) (scalar.binaryDecoder resolver))),
+            let expectedOid = declaredOid scalar dimensionality.dims resolver
+            -- A resolver that couldn't determine the type reports 0, which is not a real
+            -- OID to contradict — trust the wire in that case, same as before this check
+            -- existed. Only a POSITIVE mismatch (both sides known, and disagreeing) is a
+            -- real error; re-validating would otherwise hard-fail on every resolver miss.
+            if expectedOid /= 0 && fromIntegral fieldOid /= expectedOid
+              then do
+                case contentSize of
+                  -1 -> pure ()
+                  _ -> void (PtrPeeker.forceSize (fromIntegral contentSize) (pure ()))
+                pure (Left (fieldOidMismatchReport expectedOid fieldOid))
+              else case contentSize of
+                -1 -> pure nullability.onNull
+                _ ->
+                  fmap
+                    (fmap nullability.onNonNull)
+                    (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder (elementOid scalar resolver) (scalar.binaryDecoder resolver))),
           textualEncoder = \resolver value ->
             let txtEnc = dimensionality.textualEncoder (scalar.textualEncoder resolver)
              in enc

@@ -76,6 +76,22 @@ compositeWithArrayScalar =
           )
     )
 
+-- | Declares its first field as @float4@ while the real server-side
+-- @composite_point@ type has @int4@ there — same byte width, different OID,
+-- so a mismatch wouldn't fail on size alone.
+data MismatchedPoint = MismatchedPoint {mpX :: PostgresqlTypes.Float4, mpY :: PostgresqlTypes.Int4}
+  deriving (Eq, Show)
+
+mismatchedPointScalar :: PostgresqlCodecs.Scalar MismatchedPoint
+mismatchedPointScalar =
+  PostgresqlCodecs.composite
+    "public"
+    "composite_point"
+    ( MismatchedPoint
+        <$> lmap (.mpX) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.mpY) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+    )
+
 spec :: SpecHook.HookedSpec
 spec = do
   describe "Fields" $ do
@@ -146,6 +162,19 @@ spec = do
           env.binary
           val
       result `shouldBe` Right val
+
+    it "composite field OID mismatch is a hard decode error" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT ROW(42, 7)::composite_point"
+          mempty
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column mismatchedPointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          ()
+      case result of
+        Left _ -> pure ()
+        Right value -> expectationFailure ("expected a field-OID mismatch error, got: " <> show value)
 
     it "nested composite decode" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
