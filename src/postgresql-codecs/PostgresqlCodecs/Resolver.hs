@@ -24,9 +24,13 @@ data TypeOids = TypeOids
 -- driver contract.
 --
 -- 'Resolver' is total: it returns @TypeOids 0 0@ for anything it cannot
--- resolve, rather than failing. PostgreSQL treats @0@ as its \"unspecified\"
--- sentinel and either infers the type itself or reports a server-side error
--- naming it.
+-- resolve, rather than failing. For a scalar slot that degrades gracefully —
+-- PostgreSQL treats @0@ as its \"unspecified\" sentinel and either infers the
+-- type itself or reports a server-side error naming it. A binary array of an
+-- unresolved type, however, cannot be decoded at all: the array-header check
+-- compares the expected element OID against the one the server sends, so an
+-- expected @0@ fails with a @Base OID mismatch@ report. See "PostgresqlCodecs"
+-- for the full contract.
 --
 -- Drivers should cache resolutions — the natural granularity is per
 -- connection, since the OIDs of user-defined types are stable within a

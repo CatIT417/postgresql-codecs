@@ -74,9 +74,7 @@ declaredOid scalar dims resolver =
     then case scalar.arrayOid of
       Just o -> o
       Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
-    else case scalar.baseOid of
-      Just o -> o
-      Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
+    else elementOid scalar resolver
 
 -- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
 standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a

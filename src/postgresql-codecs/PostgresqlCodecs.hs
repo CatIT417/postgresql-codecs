@@ -30,19 +30,26 @@
 -- 3. Pass that single 'Resolver' to every resolver-parameterized field
 --    touched for the statement: @Columns.decoder@, @Columns.oids@,
 --    @Params.oids@, and @Params.binaryEncoder@\/@textualEncoder@.
--- 4. Rely on 'Resolver' being total: it returns @TypeOids 0 0@ for anything
---    it cannot resolve, @0@ being PostgreSQL's \"unspecified\" sentinel. The
---    server then either infers the type or reports an error naming it — the
---    library itself has no failure path for an unresolvable type.
+-- 4. Understand what an unresolved type costs. 'Resolver' is total: it
+--    returns @TypeOids 0 0@ for anything it cannot resolve, @0@ being
+--    PostgreSQL's \"unspecified\" sentinel. For a scalar slot that degrades
+--    gracefully — the server infers the type or reports an error naming it.
+--    For a binary array it does not: the library's own array-header check
+--    compares the expected element OID against the one the server sends, so
+--    an expected @0@ fails the decode with a @Base OID mismatch@ @Report@.
+--    Resolution is therefore mandatory, not best-effort, for a binary
+--    array-typed codec.
 -- 5. Cache resolutions, ideally per connection (OIDs of user-defined types
 --    are stable within a database but differ across databases). The
 --    integration test harness in this repository re-queries @pg_type@ on
 --    every query for simplicity; that is NOT the pattern to copy for
 --    performance.
 --
--- The textual wire format embeds no OIDs, so textual codecs ignore their
--- 'Resolver' argument; they still take one so drivers can treat both wire
--- formats uniformly.
+-- The textual wire format embeds no OIDs, so the textual encoders and
+-- decoders ignore their 'Resolver' argument; they still take one so drivers
+-- can treat both wire formats uniformly. This applies to the codecs only —
+-- a textual parameter is still declared to the server by OID, so
+-- @Params.oids@ needs a resolver regardless of wire format.
 module PostgresqlCodecs
   ( -- * Report
     Report (..),

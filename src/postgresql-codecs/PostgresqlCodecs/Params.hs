@@ -18,8 +18,10 @@ data Format
     -- matters here, since binary payloads embed OIDs (e.g. in array
     -- headers).
     Binary
-  | -- | The parameter's textual encoder produces the value. The wire
-    -- format embeds no OIDs, so the 'Resolver' argument is ignored.
+  | -- | The parameter's textual encoder produces the value. The wire format
+    -- embeds no OIDs, so the textual encoder ignores its 'Resolver' — but the
+    -- parameter is still declared to the server by OID, so @oids@ needs a
+    -- resolver either way.
     Textual
   deriving stock (Eq, Show)
 

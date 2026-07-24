@@ -65,8 +65,8 @@ refine f = \case
   OneRow columnsDecoder toRow -> OneRow columnsDecoder (\row -> toRow row >>= f)
   ManyRows columnsDecoder initialAcc foldRow finalize -> ManyRows columnsDecoder initialAcc foldRow (\acc -> finalize acc >>= f)
 
--- | Transitive set of @(schema, name)@ pairs of referenced types that have no
--- statically known base OID and therefore must be resolved at runtime.
+-- | Transitive set of @(schema, name)@ pairs of referenced types whose base
+-- or array OID is not statically known and therefore must be resolved at runtime.
 unresolvedTypes :: Result a -> Set (Text, Text)
 unresolvedTypes = \case
   RowsAffected _ -> Set.empty

@@ -38,8 +38,8 @@ data Columns a = Columns
     unresolvedTypes :: Set (Text, Text),
     -- | Expected type OID of each result column, in column order — for
     -- drivers that want to validate the shape of a result set against this
-    -- decoder before decoding it. A value of 0 means the OID is unknown
-    -- (unresolved, or the server should infer it).
+    -- decoder before decoding it. A value of 0 means the OID is not known,
+    -- i.e. the type was not resolved.
     oids :: Resolver -> [Word32],
     -- | Wire-format decoder that supports both binary and text formats.
     decoder :: Resolver -> (forall f. (ConsumesColumns f) => f a)
