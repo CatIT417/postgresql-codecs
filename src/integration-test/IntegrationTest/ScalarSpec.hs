@@ -2,6 +2,7 @@ module IntegrationTest.ScalarSpec (spec) where
 
 import qualified Data.ByteString as BS
 import qualified Data.Pool as Pool
+import qualified Data.Set as Set
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
@@ -31,15 +32,17 @@ genreScalar =
     "movie_genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
-setupTypes :: SpecHook.Env -> IO SpecHook.Env
-setupTypes env = do
-  Pool.withResource env.pool $ \conn ->
-    PQ.exec conn "CREATE TYPE movie_genre AS ENUM ('Comedy', 'Action', 'Drama')"
-  pure env
-
 spec :: SpecHook.HookedSpec
-spec = beforeAllWith setupTypes $ do
+spec = do
   describe "Scalar" $ do
+    describe "standard unresolvedTypes" $ do
+      it "is empty when both OIDs are statically known" $ \_env ->
+        (PostgresqlCodecs.standard @PostgresqlTypes.Int4).unresolvedTypes `shouldBe` mempty
+
+      it "contains the type itself when the OIDs are not statically known" $ \_env ->
+        (PostgresqlCodecs.standard @PostgresqlTypes.Citext).unresolvedTypes
+          `shouldBe` Set.singleton ("", "citext")
+
     describe "standard roundtrips" $ do
       it "int2" $ \env -> do
         result <- Pool.withResource env.pool $ \conn ->

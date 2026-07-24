@@ -33,8 +33,8 @@ data Scalar a = Scalar
     arrayOid :: Maybe Word32,
     -- | Whether this scalar type supports binary encoding/decoding.
     supportsBinary :: Bool,
-    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
-    -- no statically known base OID and therefore must be resolved at runtime.
+    -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
+    -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
     binaryEncoder :: Resolver -> a -> Either Report Write.Write,
     binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report a),
@@ -53,6 +53,30 @@ instance Invariant Scalar where
         textualDecoder = \r -> fmap f (textualDecoder r),
         ..
       }
+
+-- | OID of the scalar's own element type, resolved by name when not statically known.
+-- Returns 0 when the resolver cannot determine it.
+--
+-- This is what goes into a binary array header — always the base OID, regardless of
+-- dimensionality. Contrast with 'declaredOid'.
+elementOid :: Scalar a -> Resolver -> Word32
+elementOid scalar resolver =
+  case scalar.baseOid of
+    Just o -> o
+    Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
+
+-- | OID of the type occupying a parameter, result-column or composite-field slot at the given
+-- dimensionality: the array type when @dims > 0@, the base type otherwise. Resolved by name when not
+-- statically known. Returns 0 when the resolver cannot determine it.
+declaredOid :: Scalar a -> Int -> Resolver -> Word32
+declaredOid scalar dims resolver =
+  if dims > 0
+    then case scalar.arrayOid of
+      Just o -> o
+      Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
+    else case scalar.baseOid of
+      Just o -> o
+      Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
 
 -- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
 standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
@@ -101,7 +125,14 @@ standard =
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
           supportsBinary = True,
-          unresolvedTypes = mempty,
+          -- Not every 'PostgresqlTypes.IsScalar' instance knows its OIDs statically
+          -- (@citext@ and @hstore@ know neither), and both are needed: the base OID by
+          -- 'elementOid' and the array OID by 'declaredOid'. Announce the type as
+          -- unresolved whenever either is missing.
+          unresolvedTypes =
+            if isNothing (untag (PostgresqlTypes.baseOid @a)) || isNothing (untag (PostgresqlTypes.arrayOid @a))
+              then Set.singleton ("", untag (PostgresqlTypes.typeName @a))
+              else mempty,
           binaryEncoder = \_resolver a -> Right (PostgresqlTypes.binaryEncoder a),
           binaryDecoder = \_resolver -> fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
           textualEncoder = \_resolver a -> Right (PostgresqlTypes.textualEncoder a),

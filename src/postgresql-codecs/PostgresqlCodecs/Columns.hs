@@ -33,8 +33,8 @@ class (Applicative f) => ConsumesColumns f where
 data Columns a = Columns
   { -- | Expected number of columns in the result set.
     count :: Int32,
-    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
-    -- no statically known base OID and therefore must be resolved at runtime.
+    -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
+    -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
     -- | OID of each column. A value of 0 means unknown.
     oids :: Resolver -> [Word32],
@@ -74,13 +74,12 @@ column scalar dimensionality nullability =
   Columns
     { count = 1,
       unresolvedTypes = scalar.unresolvedTypes,
-      oids = \_resolver -> [fromMaybe 0 (if dimensionality.dims > 0 then scalar.arrayOid else scalar.baseOid)],
+      oids = \resolver -> [declaredOid scalar dimensionality.dims resolver],
       decoder = \resolver ->
-        let baseOid = case scalar.baseOid of
-              Just o -> o
-              Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
+        let binaryPeeker = dimensionality.binaryDecoder (elementOid scalar resolver) (scalar.binaryDecoder resolver)
+            textualParser = dimensionality.textualDecoder (scalar.textualDecoder resolver)
          in consumeColumn
               nullability.onNull
-              (fmap (fmap nullability.onNonNull) (dimensionality.binaryDecoder baseOid (scalar.binaryDecoder resolver)))
-              (fmap nullability.onNonNull (dimensionality.textualDecoder (scalar.textualDecoder resolver)))
+              (fmap (fmap nullability.onNonNull) binaryPeeker)
+              (fmap nullability.onNonNull textualParser)
     }

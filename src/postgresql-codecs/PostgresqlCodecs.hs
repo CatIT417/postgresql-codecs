@@ -58,6 +58,8 @@ module PostgresqlCodecs
     standard,
     enum,
     composite,
+    elementOid,
+    declaredOid,
 
     -- * Composite types
     Fields,

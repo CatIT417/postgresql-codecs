@@ -3,7 +3,6 @@ module IntegrationTest.DimensionalitySpec (spec) where
 import qualified Data.Pool as Pool
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
-import qualified Database.PostgreSQL.LibPQ as PQ
 import qualified Demo.Types
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
@@ -13,14 +12,8 @@ import qualified PostgresqlTypes.Int4
 import Test.Hspec
 import Prelude
 
-setupType :: SpecHook.Env -> IO SpecHook.Env
-setupType env = do
-  Pool.withResource env.pool $ \conn ->
-    PQ.exec conn "CREATE TYPE genre AS ENUM ('rock', 'pop', 'jazz')"
-  pure env
-
 spec :: SpecHook.HookedSpec
-spec = beforeAllWith setupType $ do
+spec = do
   describe "Dimensionality" $ do
     it "d1 non-nullable array roundtrip" $ \env -> do
       let input = Vector.fromList [PostgresqlTypes.Int4.fromInt32 1, PostgresqlTypes.Int4.fromInt32 2, PostgresqlTypes.Int4.fromInt32 3]

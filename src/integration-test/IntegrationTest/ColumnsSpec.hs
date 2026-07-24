@@ -1,6 +1,8 @@
 module IntegrationTest.ColumnsSpec (spec) where
 
 import qualified Data.Pool as Pool
+import Data.Vector (Vector)
+import Data.Word (Word32)
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
@@ -10,9 +12,39 @@ import qualified PostgresqlTypes.Int8
 import Test.Hspec
 import Prelude
 
+-- ---------------------------------------------------------------------------
+-- Enum type for testing the resolved column OID.
+-- Only used in pure tests, so it needs no server-side counterpart.
+
+data Color = Red | Green deriving (Eq, Ord, Show)
+
+colorScalar :: PostgresqlCodecs.Scalar Color
+colorScalar = PostgresqlCodecs.enum "" "column_color" [("red", Red), ("green", Green)]
+
 spec :: SpecHook.HookedSpec
 spec = do
   describe "Columns" $ do
+    it "oids resolves the declared column type" $ \_env -> do
+      let sentinelBaseOid = 424242 :: Word32
+          sentinelArrayOid = 424243 :: Word32
+          resolver s n =
+            if (s, n) == ("", "column_color")
+              then PostgresqlCodecs.TypeOids sentinelBaseOid sentinelArrayOid
+              else PostgresqlCodecs.TypeOids 0 0
+          zeroResolver _ _ = PostgresqlCodecs.TypeOids 0 0
+          scalarColumn =
+            PostgresqlCodecs.column colorScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+          arrayColumn :: PostgresqlCodecs.Columns (Vector Color)
+          arrayColumn =
+            PostgresqlCodecs.column
+              colorScalar
+              (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector)
+              PostgresqlCodecs.nonNullable
+      scalarColumn.oids resolver `shouldBe` [sentinelBaseOid]
+      scalarColumn.oids zeroResolver `shouldBe` [0]
+      arrayColumn.oids resolver `shouldBe` [sentinelArrayOid]
+      arrayColumn.oids zeroResolver `shouldBe` [0]
+
     it "single int4 column" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->
         execQuery

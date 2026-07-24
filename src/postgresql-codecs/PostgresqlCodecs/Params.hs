@@ -20,8 +20,8 @@ data Format = Binary | Textual
 data Params a = Params
   { -- | Number of parameters.
     count :: Int32,
-    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
-    -- no statically known base OID and therefore must be resolved at runtime.
+    -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
+    -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
     -- | OID of each parameter. A value of 0 means the server should infer the type.
     oids :: Resolver -> [Word32],
@@ -73,23 +73,14 @@ instance Monoid (Params a) where
 -- | Build a single-parameter encoder from a scalar, dimensionality, and nullability.
 param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
 param scalar dimensionality nullability =
-  let baseOid = fromMaybe 0 scalar.baseOid
-      Nullability {encoder = enc} = nullability
-      resolveParamOid resolver =
-        if dimensionality.dims > 0
-          then case scalar.arrayOid of
-            Just o -> o
-            Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
-          else case scalar.baseOid of
-            Just o -> o
-            Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
+  let Nullability {encoder = enc} = nullability
    in Params
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
-          oids = \resolver -> [resolveParamOid resolver],
+          oids = \resolver -> [declaredOid scalar dimensionality.dims resolver],
           formats = [if scalar.supportsBinary then Binary else Textual],
           binaryEncoder = \resolver c ->
-            let binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
+            let binEnc = dimensionality.binaryEncoder (elementOid scalar resolver) (scalar.binaryEncoder resolver)
              in fmap (: []) (enc (Right Nothing) (\a -> fmap Just (binEnc a)) c),
           textualEncoder = \resolver c ->
             let txtEnc = dimensionality.textualEncoder (scalar.textualEncoder resolver)

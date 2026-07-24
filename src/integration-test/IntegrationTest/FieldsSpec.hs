@@ -2,7 +2,8 @@ module IntegrationTest.FieldsSpec (spec) where
 
 import qualified Data.Pool as Pool
 import Data.Profunctor
-import qualified Database.PostgreSQL.LibPQ as PQ
+import Data.Vector (Vector)
+import qualified Data.Vector as Vector
 import Demo.Types (Artist (..), Genre (..), artist)
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
@@ -57,87 +58,107 @@ compositeWithNullableScalar =
         <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
     )
 
-setupTypes :: SpecHook.Env -> IO SpecHook.Env
-setupTypes env = do
-  Pool.withResource env.pool $ \conn -> do
-    _ <- PQ.exec conn "CREATE TYPE composite_with_nullable AS (x int4, y int4)"
-    _ <- PQ.exec conn "CREATE TYPE composite_point AS (x int4, y int4)"
-    _ <- PQ.exec conn "CREATE TYPE composite_container AS (point composite_point, label text)"
-    _ <-
-      PQ.exec
-        conn
-        "DO $$ BEGIN\n\
-        \  CREATE TYPE genre AS ENUM ('rock', 'pop', 'jazz');\n\
-        \EXCEPTION WHEN duplicate_object THEN NULL;\n\
-        \END $$"
-    _ <- PQ.exec conn "CREATE TYPE artist AS (name text, genre genre)"
-    pure ()
-  pure env
+newtype CompositeWithArray = CompositeWithArray {cwaXs :: Vector PostgresqlTypes.Int4}
+  deriving (Eq, Show)
+
+compositeWithArrayScalar :: PostgresqlCodecs.Scalar CompositeWithArray
+compositeWithArrayScalar =
+  PostgresqlCodecs.composite
+    "public"
+    "composite_with_array"
+    ( CompositeWithArray
+        <$> lmap
+          (.cwaXs)
+          ( PostgresqlCodecs.field
+              PostgresqlCodecs.standard
+              (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector)
+              PostgresqlCodecs.nonNullable
+          )
+    )
 
 spec :: SpecHook.HookedSpec
-spec = beforeAllWith setupTypes $
-  do
-    describe "Fields" $ do
-      it "composite roundtrip" $ \env -> do
-        let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
-        result <- Pool.withResource env.pool $ \conn ->
-          execQuery
-            conn
-            "SELECT $1::composite_point"
-            (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-            env.binary
-            pt
-        result `shouldBe` Right pt
+spec = do
+  describe "Fields" $ do
+    it "composite roundtrip" $ \env -> do
+      let pt = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7}
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::composite_point"
+          (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          pt
+      result `shouldBe` Right pt
 
-      it "composite with nullable field non-null" $ \env -> do
-        let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Just (PostgresqlTypes.Int4.fromInt32 2)}
-        result <- Pool.withResource env.pool $ \conn ->
-          execQuery
-            conn
-            "SELECT $1::composite_with_nullable"
-            (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-            env.binary
-            val
-        result `shouldBe` Right val
+    it "composite with nullable field non-null" $ \env -> do
+      let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Just (PostgresqlTypes.Int4.fromInt32 2)}
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::composite_with_nullable"
+          (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          val
+      result `shouldBe` Right val
 
-      it "composite with nullable field null" $ \env -> do
-        let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Nothing}
-        result <- Pool.withResource env.pool $ \conn ->
-          execQuery
-            conn
-            "SELECT $1::composite_with_nullable"
-            (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-            env.binary
-            val
-        result `shouldBe` Right val
+    it "composite with nullable field null" $ \env -> do
+      let val = CompositeWithNullable {cnX = PostgresqlTypes.Int4.fromInt32 1, cnY = Nothing}
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::composite_with_nullable"
+          (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          val
+      result `shouldBe` Right val
 
-      it "composite with enum field binary roundtrip (Artist)" $ \env -> do
-        let val = Artist {name = "Miles", genre = Jazz}
-        result <- Pool.withResource env.pool $ \conn ->
-          execQuery
-            conn
-            "SELECT $1::artist"
-            (PostgresqlCodecs.param artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-            env.binary
-            val
-        result `shouldBe` Right val
+    it "composite with enum field binary roundtrip (Artist)" $ \env -> do
+      let val = Artist {name = "Miles", genre = Jazz}
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::artist"
+          (PostgresqlCodecs.param artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          val
+      result `shouldBe` Right val
 
-      it "nested composite decode" $ \env -> do
-        result <- Pool.withResource env.pool $ \conn ->
-          execQuery
-            conn
-            "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
-            mempty
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
-            env.binary
-            ()
-        result
-          `shouldBe` Right
-            CompositeContainer
-              { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
-                containerLabel = "hello, world"
+    it "composite with array field roundtrip" $ \env -> do
+      let val =
+            CompositeWithArray
+              { cwaXs =
+                  Vector.fromList
+                    [ PostgresqlTypes.Int4.fromInt32 1,
+                      PostgresqlTypes.Int4.fromInt32 2,
+                      PostgresqlTypes.Int4.fromInt32 3
+                    ]
               }
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT $1::composite_with_array"
+          (PostgresqlCodecs.param compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          val
+      result `shouldBe` Right val
+
+    it "nested composite decode" $ \env -> do
+      result <- Pool.withResource env.pool $ \conn ->
+        execQuery
+          conn
+          "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
+          mempty
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          env.binary
+          ()
+      result
+        `shouldBe` Right
+          CompositeContainer
+            { containerPoint = CompositePoint {ptX = PostgresqlTypes.Int4.fromInt32 42, ptY = PostgresqlTypes.Int4.fromInt32 7},
+              containerLabel = "hello, world"
+            }

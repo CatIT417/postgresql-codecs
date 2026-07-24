@@ -1,8 +1,10 @@
 module IntegrationTest.ParamsSpec (spec) where
 
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Data.Functor.Contravariant
 import qualified Data.Pool as Pool
+import qualified Data.Vector as Vector
 import Data.Word (Word32)
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
@@ -39,11 +41,17 @@ textOnlyInt4 =
       PostgresqlCodecs.binaryEncoder = \_ _ -> Right (Write.bWord64 0)
     }
 
-setupTypes :: SpecHook.Env -> IO SpecHook.Env
-setupTypes env = do
-  Pool.withResource env.pool $ \conn ->
-    PQ.exec conn "CREATE TYPE param_color AS ENUM ('red', 'green')"
-  pure env
+-- | Extract the element-OID slot from an encoded binary array.
+--
+-- The binary array header is
+-- @[ndim :: int4][flags :: int4][element oid :: int4][dim size :: int4][lower bound :: int4]…@,
+-- so the element OID occupies bytes 8-11, big-endian.
+arrayHeaderElementOid :: BS.ByteString -> Word32
+arrayHeaderElementOid bytes =
+  fromIntegral (BS.index bytes 8) * 16777216
+    + fromIntegral (BS.index bytes 9) * 65536
+    + fromIntegral (BS.index bytes 10) * 256
+    + fromIntegral (BS.index bytes 11)
 
 -- | Fetch a single-row, single-column @oid@ value as text and parse it.
 fetchOid :: PQ.Connection -> BS8.ByteString -> IO Word32
@@ -55,7 +63,7 @@ fetchOid conn sql = do
   pure (maybe 0 (maybe 0 (fromIntegral . fst) . BS8.readInt) mBytes)
 
 spec :: SpecHook.HookedSpec
-spec = beforeAllWith setupTypes $ do
+spec = do
   describe "Params" $ do
     it "resolved enum parameter OID matches pg_type.oid" $ \env ->
       Pool.withResource env.pool $ \conn -> do
@@ -69,6 +77,25 @@ spec = beforeAllWith setupTypes $ do
         realOid `shouldNotBe` 0
         ps.oids resolver `shouldBe` [realOid]
         ps.oids (\_ _ -> PostgresqlCodecs.TypeOids 0 0) `shouldBe` [0]
+
+    it "binary array header carries the resolved element OID" $ \_env -> do
+      let ps =
+            PostgresqlCodecs.param
+              colorScalar
+              (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector)
+              PostgresqlCodecs.nonNullable
+          sentinelBaseOid = 987654 :: Word32
+          sentinelArrayOid = 987655 :: Word32
+          resolver s n =
+            if (s, n) == ("", "param_color")
+              then PostgresqlCodecs.TypeOids sentinelBaseOid sentinelArrayOid
+              else PostgresqlCodecs.TypeOids 0 0
+      case ps.binaryEncoder resolver (Vector.fromList [Red, Green]) of
+        Left report -> expectationFailure ("Encoding failed: " <> show report)
+        Right [Just write] ->
+          arrayHeaderElementOid (Write.toByteString write) `shouldBe` sentinelBaseOid
+        Right other ->
+          expectationFailure ("Unexpected encoder output: " <> show (length other) <> " value(s)")
 
     it "single int4 param" $ \env -> do
       result <- Pool.withResource env.pool $ \conn ->

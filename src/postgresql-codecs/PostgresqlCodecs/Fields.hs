@@ -18,8 +18,8 @@ import qualified TextBuilder
 -- @a@ is the input type for encoding; @b@ is the output type for decoding.
 data Fields a b = Fields
   { count :: Int32,
-    -- | Transitive set of @(schema, name)@ pairs of referenced types that have
-    -- no statically known base OID and therefore must be resolved at runtime.
+    -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
+    -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
     binaryEncoder :: Resolver -> a -> Either Report Write.Write,
     binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report b),
@@ -80,16 +80,16 @@ instance Profunctor Fields where
 field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
 field scalar dimensionality nullability =
   let Nullability {encoder = enc} = nullability
-      resolvedBaseOid resolver = case scalar.baseOid of
-        Just o -> o
-        Nothing -> (resolver scalar.schemaName scalar.typeName).baseOid
    in Fields
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
           binaryEncoder = \resolver value ->
-            let baseOid = resolvedBaseOid resolver
-                binEnc = dimensionality.binaryEncoder baseOid (scalar.binaryEncoder resolver)
-                oid = Write.bInt32 (fromIntegral baseOid)
+            -- The field's own type slot holds the DECLARED type of the field — the array
+            -- type when the field is array-typed. The array header nested inside the
+            -- payload holds the ELEMENT type. Conflating the two makes the server reject
+            -- the whole record.
+            let binEnc = dimensionality.binaryEncoder (elementOid scalar resolver) (scalar.binaryEncoder resolver)
+                oid = Write.bInt32 (fromIntegral (declaredOid scalar dimensionality.dims resolver))
              in enc
                   (Right (oid <> Write.bInt32 (-1)))
                   ( \a -> do
@@ -106,7 +106,7 @@ field scalar dimensionality nullability =
               _ ->
                 fmap
                   (fmap nullability.onNonNull)
-                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder (resolvedBaseOid resolver) (scalar.binaryDecoder resolver))),
+                  (PtrPeeker.forceSize (fromIntegral contentSize) (dimensionality.binaryDecoder (elementOid scalar resolver) (scalar.binaryDecoder resolver))),
           textualEncoder = \resolver value ->
             let txtEnc = dimensionality.textualEncoder (scalar.textualEncoder resolver)
              in enc
