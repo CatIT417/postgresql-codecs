@@ -36,10 +36,17 @@ colorScalar = PostgresqlCodecs.enum "" "param_color" [("red", Red), ("green", Gr
 -- proves the parameter was actually sent in the textual format.
 textOnlyInt4 :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
 textOnlyInt4 =
-  PostgresqlCodecs.standard
-    { PostgresqlCodecs.supportsBinary = False,
-      PostgresqlCodecs.binaryEncoder = \_ _ -> Right (Write.bWord64 0)
-    }
+  let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+   in PostgresqlCodecs.custom
+        base.schemaName
+        base.typeName
+        base.baseOid
+        base.arrayOid
+        False
+        (\_resolver _value -> Right (Write.bWord64 0))
+        base.binaryDecoder
+        base.textualEncoder
+        base.textualDecoder
 
 -- | Extract the element-OID slot from an encoded binary array.
 --

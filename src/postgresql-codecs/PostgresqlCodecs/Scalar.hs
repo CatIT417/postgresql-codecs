@@ -76,6 +76,42 @@ declaredOid scalar dims resolver =
       Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
     else elementOid scalar resolver
 
+-- | Build a 'Scalar' from raw codec functions, for types that don't fit 'standard' or 'enum' —
+-- e.g. a type whose binary wire format the server doesn't support, or one this library has no
+-- other constructor for.
+custom ::
+  -- | Schema name. Empty for the default schema.
+  Text ->
+  -- | Type name.
+  Text ->
+  -- | Statically known base OID, if any.
+  Maybe Word32 ->
+  -- | Statically known array OID, if any.
+  Maybe Word32 ->
+  -- | Whether the type supports binary encoding/decoding.
+  Bool ->
+  (Resolver -> a -> Either Report Write.Write) ->
+  (Resolver -> PtrPeeker.Variable (Either Report a)) ->
+  (Resolver -> a -> Either Report TextBuilder.TextBuilder) ->
+  (Resolver -> Atto.Parser a) ->
+  Scalar a
+custom schemaName typeName baseOid arrayOid supportsBinary binaryEncoder binaryDecoder textualEncoder textualDecoder =
+  Scalar
+    { schemaName,
+      typeName,
+      baseOid,
+      arrayOid,
+      supportsBinary,
+      unresolvedTypes =
+        if isNothing baseOid || isNothing arrayOid
+          then Set.singleton (schemaName, typeName)
+          else mempty,
+      binaryEncoder,
+      binaryDecoder,
+      textualEncoder,
+      textualDecoder
+    }
+
 -- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
 standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
 standard =
@@ -118,7 +154,7 @@ standard =
                   ]
               }
    in Scalar
-        { schemaName = "",
+        { schemaName = fromMaybe "" (untag (PostgresqlTypes.schemaName @a)),
           typeName = untag (PostgresqlTypes.typeName @a),
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),

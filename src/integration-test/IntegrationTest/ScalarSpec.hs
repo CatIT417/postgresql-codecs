@@ -3,11 +3,13 @@ module IntegrationTest.ScalarSpec (spec) where
 import qualified Data.ByteString as BS
 import qualified Data.Pool as Pool
 import qualified Data.Set as Set
+import Data.Tagged (Tagged (..))
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
+import qualified PostgresqlTypes.Algebra as Algebra
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
 import qualified PostgresqlTypes.Float4
@@ -32,6 +34,20 @@ genreScalar =
     "movie_genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
+-- ---------------------------------------------------------------------------
+-- IsScalar instance declaring a non-default schema, for testing that
+-- 'PostgresqlCodecs.standard' honors it instead of hardcoding "".
+
+data SchemaedWidget = SchemaedWidget
+
+instance Algebra.IsScalar SchemaedWidget where
+  schemaName = Tagged (Just "custom_schema")
+  typeName = Tagged "widget"
+  binaryEncoder = error "not exercised by this test"
+  binaryDecoder = error "not exercised by this test"
+  textualEncoder = error "not exercised by this test"
+  textualDecoder = error "not exercised by this test"
+
 spec :: SpecHook.HookedSpec
 spec = do
   describe "Scalar" $ do
@@ -42,6 +58,59 @@ spec = do
       it "contains the type itself when the OIDs are not statically known" $ \_env ->
         (PostgresqlCodecs.standard @PostgresqlTypes.Citext).unresolvedTypes
           `shouldBe` Set.singleton ("", "citext")
+
+    describe "standard schemaName" $ do
+      it "is empty when the instance declares no schema" $ \_env ->
+        (PostgresqlCodecs.standard @PostgresqlTypes.Int4).schemaName `shouldBe` ""
+
+      it "matches the instance's declared schema" $ \_env ->
+        (PostgresqlCodecs.standard @SchemaedWidget).schemaName `shouldBe` "custom_schema"
+
+    describe "custom" $ do
+      it "passes supportsBinary through" $ \_env -> do
+        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+            scalar =
+              PostgresqlCodecs.custom
+                base.schemaName
+                base.typeName
+                base.baseOid
+                base.arrayOid
+                False
+                base.binaryEncoder
+                base.binaryDecoder
+                base.textualEncoder
+                base.textualDecoder
+        scalar.supportsBinary `shouldBe` False
+
+      it "derives unresolvedTypes as empty when both OIDs are given" $ \_env -> do
+        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+            scalar =
+              PostgresqlCodecs.custom
+                base.schemaName
+                base.typeName
+                base.baseOid
+                base.arrayOid
+                True
+                base.binaryEncoder
+                base.binaryDecoder
+                base.textualEncoder
+                base.textualDecoder
+        scalar.unresolvedTypes `shouldBe` mempty
+
+      it "derives unresolvedTypes as the type itself when either OID is missing" $ \_env -> do
+        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+            scalar =
+              PostgresqlCodecs.custom
+                "public"
+                "widget"
+                Nothing
+                base.arrayOid
+                True
+                base.binaryEncoder
+                base.binaryDecoder
+                base.textualEncoder
+                base.textualDecoder
+        scalar.unresolvedTypes `shouldBe` Set.singleton ("public", "widget")
 
     describe "standard roundtrips" $ do
       it "int2" $ \env -> do

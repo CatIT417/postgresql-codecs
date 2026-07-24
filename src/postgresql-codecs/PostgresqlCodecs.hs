@@ -99,6 +99,7 @@ module PostgresqlCodecs
     -- * Scalar types
     Scalar (..),
     standard,
+    custom,
     enum,
     composite,
 
