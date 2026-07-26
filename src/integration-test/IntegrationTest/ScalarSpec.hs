@@ -35,18 +35,20 @@ genreScalar =
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
 -- ---------------------------------------------------------------------------
--- IsScalar instance declaring a non-default schema, for testing that
+-- IsPrimitive instance declaring a non-default schema, for testing that
 -- 'PostgresqlCodecs.standard' honors it instead of hardcoding "".
 
 data SchemaedWidget = SchemaedWidget
 
-instance Algebra.IsScalar SchemaedWidget where
+instance Algebra.IsPrimitive SchemaedWidget where
   schemaName = Tagged (Just "custom_schema")
   typeName = Tagged "widget"
-  binaryEncoder = error "not exercised by this test"
-  binaryDecoder = error "not exercised by this test"
   textualEncoder = error "not exercised by this test"
   textualDecoder = error "not exercised by this test"
+
+instance Algebra.IsBinaryPrimitive SchemaedWidget where
+  binaryEncoder = error "not exercised by this test"
+  binaryDecoder = error "not exercised by this test"
 
 spec :: SpecHook.HookedSpec
 spec = do

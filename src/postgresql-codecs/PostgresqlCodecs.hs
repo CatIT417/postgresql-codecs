@@ -11,7 +11,7 @@
 -- = Resolving type OIDs
 --
 -- Codecs built from 'enum' or 'composite', and 'standard' scalars whose
--- @IsScalar@ instance has no static OID (e.g. @citext@, @hstore@), reference
+-- @IsPrimitive@ instance has no static OID (e.g. @citext@, @hstore@), reference
 -- PostgreSQL types whose OIDs this library cannot know statically. Such a
 -- codec advertises the types it needs resolved via its
 -- @unresolvedTypes :: Set (Text, Text)@ field, a set of @(schemaName,

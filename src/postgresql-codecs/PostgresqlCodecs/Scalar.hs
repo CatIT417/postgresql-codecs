@@ -112,8 +112,8 @@ custom schemaName typeName baseOid arrayOid supportsBinary binaryEncoder binaryD
       textualDecoder
     }
 
--- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsScalar' instance.
-standard :: forall a. (PostgresqlTypes.IsScalar a) => Scalar a
+-- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsPrimitive' instance.
+standard :: forall a. (PostgresqlTypes.IsPrimitive a, PostgresqlTypes.IsBinaryPrimitive a) => Scalar a
 standard =
   let -- Convert decoding errors between layers (they have identical shapes)
       convertError :: PostgresqlTypes.DecodingError -> Report
@@ -159,7 +159,7 @@ standard =
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
           supportsBinary = True,
-          -- Not every 'PostgresqlTypes.IsScalar' instance knows its OIDs statically
+          -- Not every 'PostgresqlTypes.IsPrimitive' instance knows its OIDs statically
           -- (@citext@ and @hstore@ know neither), and both are needed: the base OID by
           -- 'elementOid' and the array OID by 'declaredOid'. Announce the type as
           -- unresolved whenever either is missing.
