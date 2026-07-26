@@ -10,8 +10,8 @@
 --
 -- = Resolving type OIDs
 --
--- Codecs built from 'enum' or 'composite', and 'standard' scalars whose
--- @IsPrimitive@ instance has no static OID (e.g. @citext@, @hstore@), reference
+-- Codecs built from 'enum' or 'composite', and 'binaryPrimitive'\/'textualPrimitive' scalars
+-- whose @IsPrimitive@ instance has no static OID (e.g. @citext@, @hstore@), reference
 -- PostgreSQL types whose OIDs this library cannot know statically. Such a
 -- codec advertises the types it needs resolved via its
 -- @unresolvedTypes :: Set (Text, Text)@ field, a set of @(schemaName,
@@ -23,8 +23,8 @@
 --    @unresolvedTypes@ of everything about to be used — for this library's
 --    shape that is @params.unresolvedTypes <> Result.unresolvedTypes
 --    result@. An empty set means zero catalogue round-trips, which is the
---    common case for codecs built only from statically-known 'standard'
---    scalars.
+--    common case for codecs built only from statically-known 'binaryPrimitive'
+--    or 'textualPrimitive' scalars.
 -- 2. If that set is non-empty, look the types up in the server catalogue
 --    (e.g. via @to_regtype@) and build ONE 'Resolver' from the result.
 -- 3. Pass that single 'Resolver' to every resolver-parameterized field
@@ -98,7 +98,8 @@ module PostgresqlCodecs
 
     -- * Scalar types
     Scalar (..),
-    standard,
+    binaryPrimitive,
+    textualPrimitive,
     custom,
     enum,
     composite,

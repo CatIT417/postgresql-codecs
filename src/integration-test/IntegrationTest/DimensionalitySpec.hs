@@ -21,8 +21,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -37,8 +37,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[][]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d2 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -53,8 +53,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[][][]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d3 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -68,8 +68,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[][][][]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d4 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -83,8 +83,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[][][][][]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d5 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -98,8 +98,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[][][][][][]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d6 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -110,8 +110,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -122,8 +122,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input
@@ -134,8 +134,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4[]"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input

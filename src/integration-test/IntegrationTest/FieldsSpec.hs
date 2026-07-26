@@ -25,8 +25,8 @@ compositePointScalar =
     "public"
     "composite_point"
     ( CompositePoint
-        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 data CompositeContainer = CompositeContainer {containerPoint :: CompositePoint, containerLabel :: PostgresqlTypes.Text}
@@ -39,7 +39,7 @@ compositeContainerScalar =
     "composite_container"
     ( CompositeContainer
         <$> lmap (.containerPoint) (PostgresqlCodecs.field compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 data CompositeWithNullable = CompositeWithNullable
@@ -54,8 +54,8 @@ compositeWithNullableScalar =
     "public"
     "composite_with_nullable"
     ( CompositeWithNullable
-        <$> lmap (.cnX) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+        <$> lmap (.cnX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
     )
 
 newtype CompositeWithArray = CompositeWithArray {cwaXs :: Vector PostgresqlTypes.Int4}
@@ -70,7 +70,7 @@ compositeWithArrayScalar =
         <$> lmap
           (.cwaXs)
           ( PostgresqlCodecs.field
-              PostgresqlCodecs.standard
+              PostgresqlCodecs.binaryPrimitive
               (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector)
               PostgresqlCodecs.nonNullable
           )
@@ -88,8 +88,8 @@ mismatchedPointScalar =
     "public"
     "composite_point"
     ( MismatchedPoint
-        <$> lmap (.mpX) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.mpY) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.mpX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.mpY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 spec :: SpecHook.HookedSpec

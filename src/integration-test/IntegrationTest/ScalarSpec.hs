@@ -8,6 +8,7 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
+import qualified PtrPeeker
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Algebra as Algebra
 import qualified PostgresqlTypes.Bool
@@ -36,7 +37,7 @@ genreScalar =
 
 -- ---------------------------------------------------------------------------
 -- IsPrimitive instance declaring a non-default schema, for testing that
--- 'PostgresqlCodecs.standard' honors it instead of hardcoding "".
+-- 'PostgresqlCodecs.binaryPrimitive' honors it instead of hardcoding "".
 
 data SchemaedWidget = SchemaedWidget
 
@@ -50,27 +51,63 @@ instance Algebra.IsBinaryPrimitive SchemaedWidget where
   binaryEncoder = error "not exercised by this test"
   binaryDecoder = error "not exercised by this test"
 
+-- ---------------------------------------------------------------------------
+-- IsPrimitive instance with no IsBinaryPrimitive instance, for testing that
+-- 'PostgresqlCodecs.textualPrimitive' declines binary support.
+
+data TextOnlyWidget = TextOnlyWidget
+
+instance Algebra.IsPrimitive TextOnlyWidget where
+  schemaName = Tagged Nothing
+  typeName = Tagged "text_only_widget"
+  textualEncoder = error "not exercised by this test"
+  textualDecoder = error "not exercised by this test"
+
 spec :: SpecHook.HookedSpec
 spec = do
   describe "Scalar" $ do
-    describe "standard unresolvedTypes" $ do
+    describe "binaryPrimitive unresolvedTypes" $ do
       it "is empty when both OIDs are statically known" $ \_env ->
-        (PostgresqlCodecs.standard @PostgresqlTypes.Int4).unresolvedTypes `shouldBe` mempty
+        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4).unresolvedTypes `shouldBe` mempty
 
       it "contains the type itself when the OIDs are not statically known" $ \_env ->
-        (PostgresqlCodecs.standard @PostgresqlTypes.Citext).unresolvedTypes
+        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Citext).unresolvedTypes
           `shouldBe` Set.singleton ("", "citext")
 
-    describe "standard schemaName" $ do
+      it "qualifies the unresolved type with the instance's declared schema" $ \_env ->
+        (PostgresqlCodecs.binaryPrimitive @SchemaedWidget).unresolvedTypes
+          `shouldBe` Set.singleton ("custom_schema", "widget")
+
+    describe "binaryPrimitive schemaName" $ do
       it "is empty when the instance declares no schema" $ \_env ->
-        (PostgresqlCodecs.standard @PostgresqlTypes.Int4).schemaName `shouldBe` ""
+        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4).schemaName `shouldBe` ""
 
       it "matches the instance's declared schema" $ \_env ->
-        (PostgresqlCodecs.standard @SchemaedWidget).schemaName `shouldBe` "custom_schema"
+        (PostgresqlCodecs.binaryPrimitive @SchemaedWidget).schemaName `shouldBe` "custom_schema"
+
+    describe "textualPrimitive" $ do
+      it "reports supportsBinary as False" $ \_env ->
+        (PostgresqlCodecs.textualPrimitive @TextOnlyWidget).supportsBinary `shouldBe` False
+
+      it "rejects binary encoding" $ \_env -> do
+        let scalar = PostgresqlCodecs.textualPrimitive @TextOnlyWidget
+        case scalar.binaryEncoder (\_ _ -> PostgresqlCodecs.TypeOids 0 0) TextOnlyWidget of
+          Left _ -> pure ()
+          Right _ -> expectationFailure "expected binary encoding to be rejected"
+
+      it "rejects binary decoding" $ \_env -> do
+        let scalar = PostgresqlCodecs.textualPrimitive @TextOnlyWidget
+            result =
+              PtrPeeker.runVariableOnByteString
+                (scalar.binaryDecoder (\_ _ -> PostgresqlCodecs.TypeOids 0 0))
+                BS.empty
+        case result of
+          Right (Left _) -> pure ()
+          _ -> expectationFailure "expected binary decoding to be rejected"
 
     describe "custom" $ do
       it "passes supportsBinary through" $ \_env -> do
-        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
             scalar =
               PostgresqlCodecs.custom
                 base.schemaName
@@ -85,7 +122,7 @@ spec = do
         scalar.supportsBinary `shouldBe` False
 
       it "derives unresolvedTypes as empty when both OIDs are given" $ \_env -> do
-        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
             scalar =
               PostgresqlCodecs.custom
                 base.schemaName
@@ -100,7 +137,7 @@ spec = do
         scalar.unresolvedTypes `shouldBe` mempty
 
       it "derives unresolvedTypes as the type itself when either OID is missing" $ \_env -> do
-        let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
             scalar =
               PostgresqlCodecs.custom
                 "public"
@@ -114,13 +151,13 @@ spec = do
                 base.textualDecoder
         scalar.unresolvedTypes `shouldBe` Set.singleton ("public", "widget")
 
-    describe "standard roundtrips" $ do
+    describe "binaryPrimitive roundtrips" $ do
       it "int2" $ \env -> do
         result <- Pool.withResource env.pool $ \conn ->
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Int2.fromInt16 42)
             "int2"
         result `shouldBe` Right (PostgresqlTypes.Int2.fromInt16 42)
@@ -130,7 +167,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Int4.fromInt32 42)
             "int4"
         result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -140,7 +177,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Int8.fromInt64 9876543210)
             "int8"
         result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
@@ -150,7 +187,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Float4.fromFloat 3.14)
             "float4"
         result `shouldBe` Right (PostgresqlTypes.Float4.fromFloat 3.14)
@@ -160,7 +197,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Float8.fromDouble 3.14)
             "float8"
         result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
@@ -170,7 +207,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             ("hello" :: PostgresqlTypes.Text)
             "text"
         result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
@@ -180,7 +217,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Bool.fromBool True)
             "bool"
         result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
@@ -190,7 +227,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             (PostgresqlTypes.Bytea.fromByteString "hello")
             "bytea"
         result `shouldBe` Right (PostgresqlTypes.Bytea.fromByteString "hello")
@@ -201,7 +238,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.standard
+            PostgresqlCodecs.binaryPrimitive
             val
             "uuid"
         result `shouldBe` Right val

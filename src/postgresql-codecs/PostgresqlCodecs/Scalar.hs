@@ -76,7 +76,8 @@ declaredOid scalar dims resolver =
       Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
     else elementOid scalar resolver
 
--- | Build a 'Scalar' from raw codec functions, for types that don't fit 'standard' or 'enum' —
+-- | Build a 'Scalar' from raw codec functions, for types that don't fit 'binaryPrimitive',
+-- 'textualPrimitive', or 'enum' —
 -- e.g. a type whose binary wire format the server doesn't support, or one this library has no
 -- other constructor for.
 custom ::
@@ -112,9 +113,10 @@ custom schemaName typeName baseOid arrayOid supportsBinary binaryEncoder binaryD
       textualDecoder
     }
 
--- | Derive a 'Scalar' from a standard @postgresql-types@ 'PostgresqlTypes.IsPrimitive' instance.
-standard :: forall a. (PostgresqlTypes.IsPrimitive a, PostgresqlTypes.IsBinaryPrimitive a) => Scalar a
-standard =
+-- | Derive a 'Scalar' from a @postgresql-types@ 'PostgresqlTypes.IsBinaryPrimitive' instance,
+-- supporting both the binary and textual wire formats.
+binaryPrimitive :: forall a. (PostgresqlTypes.IsBinaryPrimitive a) => Scalar a
+binaryPrimitive =
   let -- Convert decoding errors between layers (they have identical shapes)
       convertError :: PostgresqlTypes.DecodingError -> Report
       convertError PostgresqlTypes.DecodingError {location, reason} =
@@ -153,8 +155,9 @@ standard =
                     ("failingInput", value)
                   ]
               }
+      resolvedSchemaName = fromMaybe "" (untag (PostgresqlTypes.schemaName @a))
    in Scalar
-        { schemaName = fromMaybe "" (untag (PostgresqlTypes.schemaName @a)),
+        { schemaName = resolvedSchemaName,
           typeName = untag (PostgresqlTypes.typeName @a),
           baseOid = untag (PostgresqlTypes.baseOid @a),
           arrayOid = untag (PostgresqlTypes.arrayOid @a),
@@ -165,10 +168,37 @@ standard =
           -- unresolved whenever either is missing.
           unresolvedTypes =
             if isNothing (untag (PostgresqlTypes.baseOid @a)) || isNothing (untag (PostgresqlTypes.arrayOid @a))
-              then Set.singleton ("", untag (PostgresqlTypes.typeName @a))
+              then Set.singleton (resolvedSchemaName, untag (PostgresqlTypes.typeName @a))
               else mempty,
           binaryEncoder = \_resolver a -> Right (PostgresqlTypes.binaryEncoder a),
           binaryDecoder = \_resolver -> fmap (first convertError) (PostgresqlTypes.binaryDecoder @a),
+          textualEncoder = \_resolver a -> Right (PostgresqlTypes.textualEncoder a),
+          textualDecoder = \_resolver -> PostgresqlTypes.textualDecoder
+        }
+
+-- | Derive a 'Scalar' from a @postgresql-types@ 'PostgresqlTypes.IsPrimitive' instance that has
+-- no 'PostgresqlTypes.IsBinaryPrimitive' instance, supporting only the textual wire format.
+textualPrimitive :: forall a. (PostgresqlTypes.IsPrimitive a) => Scalar a
+textualPrimitive =
+  let unsupported =
+        Report
+          { message = "Binary format not supported",
+            suggestion = "Use the textual wire format for this type",
+            details = [("type", untag (PostgresqlTypes.typeName @a))]
+          }
+      resolvedSchemaName = fromMaybe "" (untag (PostgresqlTypes.schemaName @a))
+   in Scalar
+        { schemaName = resolvedSchemaName,
+          typeName = untag (PostgresqlTypes.typeName @a),
+          baseOid = untag (PostgresqlTypes.baseOid @a),
+          arrayOid = untag (PostgresqlTypes.arrayOid @a),
+          supportsBinary = False,
+          unresolvedTypes =
+            if isNothing (untag (PostgresqlTypes.baseOid @a)) || isNothing (untag (PostgresqlTypes.arrayOid @a))
+              then Set.singleton (resolvedSchemaName, untag (PostgresqlTypes.typeName @a))
+              else mempty,
+          binaryEncoder = \_resolver _a -> Left unsupported,
+          binaryDecoder = \_resolver -> pure (Left unsupported),
           textualEncoder = \_resolver a -> Right (PostgresqlTypes.textualEncoder a),
           textualDecoder = \_resolver -> PostgresqlTypes.textualDecoder
         }

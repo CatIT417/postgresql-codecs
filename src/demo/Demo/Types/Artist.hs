@@ -16,6 +16,6 @@ artist =
     ""
     "artist"
     ( Artist
-        <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
         <*> lmap (.genre) (PostgresqlCodecs.field genre PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )

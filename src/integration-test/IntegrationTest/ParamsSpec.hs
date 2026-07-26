@@ -36,7 +36,7 @@ colorScalar = PostgresqlCodecs.enum "" "param_color" [("red", Red), ("green", Gr
 -- proves the parameter was actually sent in the textual format.
 textOnlyInt4 :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
 textOnlyInt4 =
-  let base = PostgresqlCodecs.standard @PostgresqlTypes.Int4
+  let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
    in PostgresqlCodecs.custom
         base.schemaName
         base.typeName
@@ -109,8 +109,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           (PostgresqlTypes.Int4.fromInt32 42)
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -120,8 +120,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int8"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           (PostgresqlTypes.Int8.fromInt64 9876543210)
       result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
@@ -131,8 +131,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::text"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ("hello" :: PostgresqlTypes.Text)
       result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
@@ -142,8 +142,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::bool"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           (PostgresqlTypes.Bool.fromBool True)
       result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
@@ -153,20 +153,20 @@ spec = do
         execQuery
           conn
           "SELECT $1::float8"
-          (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           (PostgresqlTypes.Float8.fromDouble 3.14)
       result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
 
     it "multiple params" $ \env -> do
       let ps =
-            contramap fst (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            contramap fst (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           cols =
             (,)
-              <$> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <$> PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
@@ -181,7 +181,7 @@ spec = do
       let ps :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
           ps =
             contramap fst (PostgresqlCodecs.param textOnlyInt4 PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           emptyPs :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
           emptyPs = mempty
       ps.formats `shouldBe` [PostgresqlCodecs.Textual, PostgresqlCodecs.Binary]
@@ -190,11 +190,11 @@ spec = do
     it "supportsBinary=False parameter stays textual alongside a binary parameter" $ \env -> do
       let ps =
             contramap fst (PostgresqlCodecs.param textOnlyInt4 PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+              <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
           cols =
             (,)
-              <$> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
-              <*> PostgresqlCodecs.column PostgresqlCodecs.standard PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <$> PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+              <*> PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
       result <- Pool.withResource env.pool $ \conn ->
         execQuery
           conn
