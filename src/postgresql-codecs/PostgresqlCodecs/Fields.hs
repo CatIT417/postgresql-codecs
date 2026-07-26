@@ -21,6 +21,8 @@ data Fields a b = Fields
     -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
     -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
+    -- | Whether every nested field's scalar supports binary encoding.
+    supportsBinary :: Bool,
     binaryEncoder :: Resolver -> a -> Either Report Write.Write,
     binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report b),
     -- | Represent in Postgres textual format.
@@ -33,6 +35,7 @@ instance Functor (Fields a) where
     Fields
       { count,
         unresolvedTypes,
+        supportsBinary,
         binaryEncoder,
         binaryDecoder = \r -> fmap (fmap f) (binaryDecoder r),
         textualEncoder,
@@ -44,6 +47,7 @@ instance Applicative (Fields a) where
     Fields
       { count = 0,
         unresolvedTypes = mempty,
+        supportsBinary = True,
         binaryEncoder = \_resolver -> const (Right mempty),
         binaryDecoder = \_resolver -> pure (Right x),
         textualEncoder = \_resolver -> const (Right []),
@@ -53,6 +57,7 @@ instance Applicative (Fields a) where
     Fields
       { count = left.count + right.count,
         unresolvedTypes = left.unresolvedTypes <> right.unresolvedTypes,
+        supportsBinary = left.supportsBinary && right.supportsBinary,
         binaryEncoder = \resolver value -> liftA2 (<>) (left.binaryEncoder resolver value) (right.binaryEncoder resolver value),
         binaryDecoder = \resolver -> liftA2 (<*>) (left.binaryDecoder resolver) (right.binaryDecoder resolver),
         textualEncoder = \resolver value -> do
@@ -70,6 +75,7 @@ instance Profunctor Fields where
     Fields
       { count,
         unresolvedTypes,
+        supportsBinary,
         binaryEncoder = \resolver value -> binaryEncoder resolver (f value),
         binaryDecoder = \r -> fmap (fmap g) (binaryDecoder r),
         textualEncoder = \resolver value -> textualEncoder resolver (f value),
@@ -99,6 +105,7 @@ field scalar dimensionality nullability =
    in Fields
         { count = 1,
           unresolvedTypes = scalar.unresolvedTypes,
+          supportsBinary = scalar.supportsBinary,
           binaryEncoder = \resolver value ->
             -- The field's own type slot holds the DECLARED type of the field — the array
             -- type when the field is array-typed. The array header nested inside the
@@ -165,7 +172,7 @@ composite schemaName typeName fields =
       typeName,
       baseOid = Nothing,
       arrayOid = Nothing,
-      supportsBinary = True,
+      supportsBinary = fields.supportsBinary,
       unresolvedTypes = Set.insert (schemaName, typeName) fields.unresolvedTypes,
       binaryEncoder = \resolver value -> do
         fieldWrites <- fields.binaryEncoder resolver value
