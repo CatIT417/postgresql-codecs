@@ -1,5 +1,8 @@
 # postgresql-codecs
 
+[![Hackage](https://img.shields.io/hackage/v/postgresql-codecs.svg)](https://hackage.haskell.org/package/postgresql-codecs)
+[![Continuous Haddock](https://img.shields.io/badge/haddock-master-blue)](https://nikita-volkov.github.io/postgresql-codecs/)
+
 **postgresql-codecs** is a driver-agnostic Haskell library for encoding and
 decoding PostgreSQL values. It covers both the binary and textual wire formats
 and ships no I/O itself - driver integration requires only a small
