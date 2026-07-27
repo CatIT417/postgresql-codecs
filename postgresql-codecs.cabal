@@ -121,7 +121,7 @@ library core
     ptr-poker ^>=0.1.3,
     tagged ^>=0.8.9,
     text >=1.2 && <3,
-    text-builder ^>=1.0.0.4
+    text-builder ^>=1.0.0.4,
 
 library
   import: base
