@@ -278,7 +278,9 @@ instance IsScalar (Types.Multirange Types.Timestamptz) where
 --
 -- 'Scientific' maps to unconstrained @numeric@ (@Types.Numeric 0 0@ — see its Haddock), the only
 -- precision\/scale choice with no column-specific meaning to pick for it. A column declared with
--- an explicit @numeric(precision, scale)@ still needs 'Types.Numeric' directly.
+-- an explicit @numeric(precision, scale)@ still needs 'Types.Numeric' directly. Its
+-- 'Types.Range'\/'Types.Multirange' get the same 'fmap' treatment as the other range-element
+-- types above.
 
 -- | Maps to @bool@.
 instance IsScalar Bool where
@@ -369,6 +371,14 @@ instance IsScalar (Types.Range LocalTime) where
 instance IsScalar (Types.Range UTCTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
 
+-- | Maps to @numrange@ over unconstrained @numeric@.
+instance IsScalar (Types.Range Scientific) where
+  scalar =
+    invmap
+      (fmap PostgresqlTypes.Numeric.normalizeToScientific)
+      (fmap PostgresqlTypes.Numeric.normalizeFromScientific)
+      (binaryPrimitive @(Types.Range (Types.Numeric 0 0)))
+
 -- | Maps to @int4multirange@.
 instance IsScalar (Types.Multirange Int32) where
   scalar = invmap (fmap PostgresqlTypes.Int4.toInt32) (fmap PostgresqlTypes.Int4.fromInt32) binaryPrimitive
@@ -390,3 +400,11 @@ instance IsScalar (Types.Multirange LocalTime) where
 -- | Maps to @tstzmultirange@.
 instance IsScalar (Types.Multirange UTCTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
+
+-- | Maps to @nummultirange@ over unconstrained @numeric@.
+instance IsScalar (Types.Multirange Scientific) where
+  scalar =
+    invmap
+      (fmap PostgresqlTypes.Numeric.normalizeToScientific)
+      (fmap PostgresqlTypes.Numeric.normalizeFromScientific)
+      (binaryPrimitive @(Types.Multirange (Types.Numeric 0 0)))
