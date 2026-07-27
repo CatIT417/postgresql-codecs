@@ -47,9 +47,11 @@ class IsScalar a where
 -- $standardInstances
 --
 -- One instance per PostgreSQL built-in type shipped by @postgresql-types@, each deferring to
--- 'binaryPrimitive'. Not covered: 'Types.Range' and 'Types.Multirange' (generic over an element
--- type, with no single obvious instance to write) and PostGIS's 'Types.Geometry' (not a
--- vanilla-PostgreSQL type). Construct 'Scalar's for those with 'binaryPrimitive' directly.
+-- 'binaryPrimitive'. 'Types.Range' and 'Types.Multirange' get one instance per standard element
+-- type (@int4@, @int8@, @numeric@, @date@, @timestamp@, @timestamptz@), mirroring the upstream
+-- @IsRangeElement@\/@IsMultirangeElement@ instances; a range\/multirange over your own element
+-- type needs an explicit 'Scalar'. Not covered: PostGIS's 'Types.Geometry' (not a
+-- vanilla-PostgreSQL type). Construct a 'Scalar' for that with 'binaryPrimitive' directly.
 
 -- | Maps to @int2@.
 instance IsScalar Types.Int2 where
@@ -205,6 +207,54 @@ instance IsScalar Types.Hstore where
 
 -- | Maps to @tsvector@.
 instance IsScalar Types.Tsvector where
+  scalar = binaryPrimitive
+
+-- | Maps to @int4range@.
+instance IsScalar (Types.Range Types.Int4) where
+  scalar = binaryPrimitive
+
+-- | Maps to @int8range@.
+instance IsScalar (Types.Range Types.Int8) where
+  scalar = binaryPrimitive
+
+-- | Maps to @numrange(precision, scale)@.
+instance (TypeLits.KnownNat precision, TypeLits.KnownNat scale) => IsScalar (Types.Range (Types.Numeric precision scale)) where
+  scalar = binaryPrimitive
+
+-- | Maps to @daterange@.
+instance IsScalar (Types.Range Types.Date) where
+  scalar = binaryPrimitive
+
+-- | Maps to @tsrange@.
+instance IsScalar (Types.Range Types.Timestamp) where
+  scalar = binaryPrimitive
+
+-- | Maps to @tstzrange@.
+instance IsScalar (Types.Range Types.Timestamptz) where
+  scalar = binaryPrimitive
+
+-- | Maps to @int4multirange@.
+instance IsScalar (Types.Multirange Types.Int4) where
+  scalar = binaryPrimitive
+
+-- | Maps to @int8multirange@.
+instance IsScalar (Types.Multirange Types.Int8) where
+  scalar = binaryPrimitive
+
+-- | Maps to @nummultirange(precision, scale)@.
+instance (TypeLits.KnownNat precision, TypeLits.KnownNat scale) => IsScalar (Types.Multirange (Types.Numeric precision scale)) where
+  scalar = binaryPrimitive
+
+-- | Maps to @datemultirange@.
+instance IsScalar (Types.Multirange Types.Date) where
+  scalar = binaryPrimitive
+
+-- | Maps to @tsmultirange@.
+instance IsScalar (Types.Multirange Types.Timestamp) where
+  scalar = binaryPrimitive
+
+-- | Maps to @tstzmultirange@.
+instance IsScalar (Types.Multirange Types.Timestamptz) where
   scalar = binaryPrimitive
 
 -- * Standard Haskell type instances
