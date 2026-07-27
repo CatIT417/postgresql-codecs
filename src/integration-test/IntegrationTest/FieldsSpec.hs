@@ -4,7 +4,7 @@ import qualified Data.Pool as Pool
 import Data.Profunctor
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
-import Demo.Types (Artist (..), Genre (..), artist)
+import Demo.Types (Artist (..), Genre (..))
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
@@ -137,8 +137,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::artist"
-          (PostgresqlCodecs.param artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column artist PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           val
       result `shouldBe` Right val

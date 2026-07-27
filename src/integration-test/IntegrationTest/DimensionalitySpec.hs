@@ -146,8 +146,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::genre[]"
-          (PostgresqlCodecs.param Demo.Types.genre (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column Demo.Types.genre (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.scalar (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.scalar (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector) PostgresqlCodecs.nonNullable))
           env.binary
           input
       result `shouldBe` Right input

@@ -6,13 +6,13 @@
 
 The library is built from five composable layers, described in the `PostgresqlCodecs` module haddock:
 
-1. `Scalar a` — codec for a single PostgreSQL scalar type: schema/type name, optionally-static base/array OIDs, a binary-support flag, and binary + textual encoder/decoder pairs. Built via `standard` (from a `postgresql-types` `IsScalar` instance), `enum`, or `composite`.
+1. `Scalar a` — codec for a single PostgreSQL scalar type: schema/type name, optionally-static base/array OIDs, a binary-support flag, and binary + textual encoder/decoder pairs. Built via `binaryPrimitive`/`textualPrimitive` (from a `postgresql-types` `IsBinaryPrimitive`/`IsPrimitive` instance), `enum`, `composite`, or `custom`. `IsScalar` (`PostgresqlCodecs.Scalar`) is an optional class associating a Haskell type with its one canonical `Scalar` — every standard type has an instance already; write one for your own enum/composite types when they have exactly one obvious representation, and keep passing `Scalar` values explicitly (no instance) when a type needs more than one.
 2. `Dimensionality scalar vec` — pass-through (`d0`) or N-dimensional array wrapping (`d1`–`d6`), parameterized by a `Dimension` (e.g. `vector`, for any `Data.Vector.Generic.Vector`).
 3. `Nullability a b` — `nullable` (wraps in `Maybe`) or `nonNullable` (rejects NULL with a `Report`).
 4. `Columns a` / `Params a` — result-set column decoder and query-parameter encoder, built per-column/per-parameter via `column` / `param`.
 5. `Result a` — full result-set decoding strategy: `oneRow`, `someRow`, `manyRows`, `rowsAffected`, with a `refine` combinator for post-hoc validation.
 
-A sixth, cross-cutting piece, added to fix a class of OID-guessing bugs: **`Resolver`** (`PostgresqlCodecs.Resolver`). Codecs that reference PostgreSQL types whose OIDs can't be known statically (`enum`, `composite`, and `standard` scalars like `citext`/`hstore` whose `IsScalar` instance has no static OID) advertise those types via `unresolvedTypes :: Set (Text, Text)`. A driver collects the union of `unresolvedTypes` across the `Params` and `Result` it's about to use, resolves it against the server catalogue if non-empty, and passes the resulting `Resolver` into `Columns.decoder`/`oids` and `Params.oids`/`binaryEncoder`/`textualEncoder`. **The full contract is documented in the `PostgresqlCodecs` module haddock (`src/postgresql-codecs/PostgresqlCodecs.hs`) — read it before implementing a driver.** Do not re-derive it from source; the haddock is authoritative and this file only summarizes it.
+A sixth, cross-cutting piece, added to fix a class of OID-guessing bugs: **`Resolver`** (`PostgresqlCodecs.Resolver`). Codecs that reference PostgreSQL types whose OIDs can't be known statically (`enum`, `composite`, and `binaryPrimitive`/`textualPrimitive` scalars like `citext`/`hstore` whose `IsPrimitive` instance has no static OID) advertise those types via `unresolvedTypes :: Set (Text, Text)`. A driver collects the union of `unresolvedTypes` across the `Params` and `Result` it's about to use, resolves it against the server catalogue if non-empty, and passes the resulting `Resolver` into `Columns.decoder`/`oids` and `Params.oids`/`binaryEncoder`/`textualEncoder`. **The full contract is documented in the `PostgresqlCodecs` module haddock (`src/postgresql-codecs/PostgresqlCodecs.hs`) — read it before implementing a driver.** Do not re-derive it from source; the haddock is authoritative and this file only summarizes it.
 
 `Fields a b` (composite-type field codecs, built with `field` and consumed by `composite`) is the one layer not in the five-layer list above but is part of the same stack.
 
@@ -37,7 +37,7 @@ Also present: `Report` (`PostgresqlCodecs.Report`) — the library's single stru
     │       ├── Prelude.hs                     # Custom prelude (NoImplicitPrelude); import this, not base Prelude
     │       ├── Report.hs                      # Report — the one structured error type
     │       ├── Resolver.hs                    # TypeOids, Resolver — the OID-resolution contract
-    │       ├── Scalar.hs                      # Scalar, standard/enum/composite, elementOid/declaredOid
+    │       ├── Scalar.hs                      # Scalar, IsScalar, binaryPrimitive/textualPrimitive/enum/composite/custom, elementOid/declaredOid
     │       ├── Fields.hs                      # Fields — composite-type field codecs, field, composite
     │       ├── Nullability.hs                 # Nullability, nullable, nonNullable
     │       ├── Dimension.hs                   # Dimension — vector, the array-representation abstraction
@@ -61,7 +61,7 @@ Also present: `Report` (`PostgresqlCodecs.Report`) — the library's single stru
             │   ScalarSpec.hs, DimensionSpec.hs, DimensionalitySpec.hs, NullabilitySpec.hs
 ```
 
-There is no `postgresql-types-algebra-0.1/` directory in this tree. `postgresql-types-algebra` and `postgresql-types` are ordinary version-bounded Hackage dependencies (`^>=0.1` each) declared in `postgresql-codecs.cabal`; `postgresql-types-algebra` supplies the `IsScalar` class algebra that `standard` builds on, and `postgresql-types` supplies the concrete standard-type instances, which `PostgresqlCodecs` re-exports wholesale (`module PostgresqlTypes`) for convenience.
+There is no `postgresql-types-algebra-0.1/` directory in this tree. `postgresql-types-algebra` and `postgresql-types` are ordinary version-bounded Hackage dependencies (`^>=0.1` each) declared in `postgresql-codecs.cabal`; `postgresql-types-algebra` supplies the `IsPrimitive`/`IsBinaryPrimitive` class algebra that `binaryPrimitive`/`textualPrimitive` build on, and `postgresql-types` supplies the concrete standard-type instances, which `PostgresqlCodecs` re-exports wholesale (`module PostgresqlTypes`) for convenience. Don't confuse this with this package's own `IsScalar` (`PostgresqlCodecs.Scalar`) — same-sounding but unrelated: `IsPrimitive`/`IsBinaryPrimitive` classify a type as a PostgreSQL primitive; `IsScalar` associates any type (primitive, enum, or composite) with its one canonical `Scalar` codec.
 
 Several files exist in the working tree but are **not tracked in git** — the repo uses a gitignore whitelist (see Development Conventions below) and these are the author's local conveniences: `build.bash`, `notes.md`, `cabal.project.local`, `.vscode/`. Don't assume they're present in a fresh checkout.
 

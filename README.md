@@ -29,37 +29,42 @@ Result          - full result-set strategy (oneRow, someRow, manyRows, rowsAffec
 
 ## Quick example
 
+Every standard PostgreSQL type already has an `IsScalar` instance, so `scalar` resolves to its
+codec from context. Write your own instance for a type with exactly one obvious representation —
+an enum or a composite, typically:
+
 ```haskell
 import PostgresqlCodecs qualified
-
--- A standard scalar (uses postgresql-types IsScalar instance)
-int4Scalar :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
-int4Scalar = PostgresqlCodecs.standard
 
 -- An enum scalar
 data Color = Red | Green | Blue
 
-colorScalar :: PostgresqlCodecs.Scalar Color
-colorScalar = PostgresqlCodecs.enum "public" "color"
-  [ ("red",   Red)
-  , ("green", Green)
-  , ("blue",  Blue)
-  ]
+instance PostgresqlCodecs.IsScalar Color where
+  scalar = PostgresqlCodecs.enum "public" "color"
+    [ ("red",   Red)
+    , ("green", Green)
+    , ("blue",  Blue)
+    ]
 
 -- A composite scalar
 data Point = Point { x :: PostgresqlTypes.Int4, y :: PostgresqlTypes.Int4 }
 
-pointScalar :: PostgresqlCodecs.Scalar Point
-pointScalar = PostgresqlCodecs.composite "public" "point" $
-  Point
-    <$> PostgresqlCodecs.field int4Scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.x)
-    <*> PostgresqlCodecs.field int4Scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.y)
+instance PostgresqlCodecs.IsScalar Point where
+  scalar = PostgresqlCodecs.composite "public" "point" $
+    Point
+      <$> PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.x)
+      <*> PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.y)
 
 -- Encoder as a query parameter and decode as a result column
 param :: PostgresqlCodecs.Params Point
-param = PostgresqlCodecs.param pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+param = PostgresqlCodecs.param PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 
 -- Decoder as a result column
 col :: PostgresqlCodecs.Columns Point
-col = PostgresqlCodecs.column pointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+col = PostgresqlCodecs.column PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 ```
+
+If a type needs more than one PostgreSQL representation (e.g. mapped against two different
+schemas, or a test-only variant), skip the instance and keep building and naming `Scalar` values
+explicitly with `enum`/`composite`/`custom` — a class instance is a single, coherence-checked,
+global choice per type, so it can't express that.

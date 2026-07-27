@@ -6,12 +6,12 @@ import Prelude hiding (Int8, Text)
 data Genre = Rock | Pop | Jazz
   deriving (Eq, Ord, Show)
 
-genre :: PostgresqlCodecs.Scalar Genre
-genre =
-  PostgresqlCodecs.enum
-    ""
-    "genre"
-    [ ("rock", Rock),
-      ("pop", Pop),
-      ("jazz", Jazz)
-    ]
+instance PostgresqlCodecs.IsScalar Genre where
+  scalar =
+    PostgresqlCodecs.enum
+      ""
+      "genre"
+      [ ("rock", Rock),
+        ("pop", Pop),
+        ("jazz", Jazz)
+      ]

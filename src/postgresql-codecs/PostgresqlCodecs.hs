@@ -8,6 +8,17 @@
 -- 4. 'Columns' \/ 'Params' — result-set column decoder and query parameter encoder.
 -- 5. 'Result' — full result-set decoding strategy.
 --
+-- = Associating a type with its 'Scalar'
+--
+-- 'IsScalar' is an optional convenience class: @instance IsScalar T where scalar = ...@ lets
+-- 'field' \/ 'column' \/ 'param' pick up @T@'s 'Scalar' from context instead of a named value
+-- being threaded through by hand. Every standard PostgreSQL type has an instance already. Write
+-- one for your own enum\/composite types when they have exactly one obvious representation; when
+-- a type needs more than one (e.g. mapped against two different schemas), keep naming and
+-- passing 'Scalar' values explicitly instead — a class instance is a single, coherence-checked,
+-- global choice per type. See 'IsScalar' for the full reasoning, including why it can never have
+-- an instance for 'Maybe' or an array\/vector type.
+--
 -- = Resolving type OIDs
 --
 -- Codecs built from 'enum' or 'composite', and 'binaryPrimitive'\/'textualPrimitive' scalars
@@ -98,6 +109,7 @@ module PostgresqlCodecs
 
     -- * Scalar types
     Scalar (..),
+    IsScalar (..),
     binaryPrimitive,
     textualPrimitive,
     custom,

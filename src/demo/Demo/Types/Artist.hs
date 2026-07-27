@@ -10,12 +10,12 @@ data Artist = Artist
   }
   deriving stock (Eq, Show)
 
-artist :: PostgresqlCodecs.Scalar Artist
-artist =
-  PostgresqlCodecs.composite
-    ""
-    "artist"
-    ( Artist
-        <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.genre) (PostgresqlCodecs.field genre PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-    )
+instance PostgresqlCodecs.IsScalar Artist where
+  scalar =
+    PostgresqlCodecs.composite
+      ""
+      "artist"
+      ( Artist
+          <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          <*> lmap (.genre) (PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+      )
