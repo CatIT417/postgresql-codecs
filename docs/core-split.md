@@ -42,18 +42,18 @@ formats changes; the language churns when ergonomics change.
 ### `PostgresqlCodecs.Core`
 
 `Params (..)`, `Columns (..)`, `Result (..)`, `Scalar (..)`, `ConsumesColumns (..)`,
-`TypeOids (..)`, `Format (..)`, `Resolver`, `Report (..)`, and the raw scalar constructors
-`custom`, `binaryPrimitive`, `textualPrimitive`.
+`TypeOids (..)`, `Format (..)`, `Resolver`, `Report (..)`.
 
 The records are the anatomy. `ConsumesColumns`, `Resolver`, `TypeOids`, and `Format` are the
 vocabulary that anatomy is written in — `Columns.decoder :: Resolver -> forall f. ConsumesColumns f
-=> f a` puts the class literally in the shape of the type. And the three scalar constructors fit
-without special pleading: they are the introduction forms that hand back a representation *directly*,
-from raw encoder/decoder pairs. Nothing is composed.
+=> f a` puts the class literally in the shape of the type.
 
-`enum` and `composite` are combinators over existing scalars, not raw authorship, so they stay in the
-language half. That line also decides where the "vocabulary extender" audience falls, and it falls
-mostly app-side, which is what we want.
+Nothing that *builds* a `Scalar` lives here. Raw authorship is the `Scalar` constructor itself; there
+is no helper wrapping it (see `custom`, below).
+
+Core therefore depends on `ptr-peeker`, `ptr-poker`, `attoparsec`, `text-builder`, `containers`, and
+`text` — and notably **not** on `postgresql-types` or `postgresql-types-algebra`. It has no opinion
+about which PostgreSQL types exist.
 
 ### `PostgresqlCodecs`
 
@@ -65,7 +65,19 @@ into the value a driver receives.
 The core types are re-exported here **abstractly** (`Params`, `Result`, `Columns`, `Scalar` — no
 `(..)`), so app-dev type signatures work without reaching for core.
 
-### Two notes on the edges
+`binaryPrimitive` and `textualPrimitive` also live here, but stay **unexported**. They derive a
+`Scalar` from a `postgresql-types-algebra` `IsPrimitive`/`IsBinaryPrimitive` instance — converting
+`DecodingError` to `Report`, extracting OIDs, deriving `unresolvedTypes` from missing static ones.
+That is derivation from a description, structurally the same move as `enum` and `composite`, so it is
+language rather than anatomy. They are kept internal because their only proven caller is this
+library's own `IsScalar` instances over the `postgresql-types` types. Exporting them later is a minor
+bump; un-exporting is a major break, so hidden is the recoverable default.
+
+The consequence, stated as a rule rather than left as an accident: **`enum` and `composite` are the
+only public ways to obtain a `Scalar`.** Anything else means dropping to core and writing
+`Scalar {..}`, which is an honest signal about what you are doing.
+
+### Three notes on the edges
 
 **`Report` is off-axis, not an exception.** It gets `(..)` on *both* sides. It is neither anatomy nor
 combinator — it is the failure type threaded orthogonally through both halves: drivers receive
@@ -75,6 +87,12 @@ them to message-only errors via the `IsString` instance, throwing away `suggesti
 real usability cost for no gain. `Report` is also the most frozen type in the library (three
 text-ish fields, documented as opaque *for reading*, no evolution pressure), unlike `Scalar`, which
 grows whenever a wire format does.
+
+**`custom` is deleted, not moved.** It took nine positional arguments that were exactly the nine
+fields of `Scalar` and packed them into the record — zero semantics. With `Scalar (..)` exported from
+core it is strictly worse than writing `Scalar {..}`, which names its fields at the call site. It is
+not language (nothing is derived or composed) and not anatomy (the constructor already is that). Its
+haddock's "escape hatch" role passes to the `Scalar` constructor.
 
 **`Resolver` has no constructors to hide.** It is a type synonym,
 `type Resolver = Text -> Text -> TypeOids`; drivers build one as a plain lambda. The core/app
@@ -113,6 +131,10 @@ reference only `Resolver`, `Report`, `Format`, and base/containers. The cycle ex
 the smart constructors `param` and `column` live in the same files as their types. Split each file —
 type and instances to core, `param` / `column` to the app side — and the cut is acyclic.
 
+`Scalar.hs` splits the same way and for the same reason: `data Scalar` to core, `binaryPrimitive` /
+`textualPrimitive` / `IsScalar` and its instances to the app side. That is what removes the
+`postgresql-types` dependency from core.
+
 ## Iteration 2: extracting the package
 
 **Trigger:** when `postgresql-codecs` starts being promoted as a library for defining codecs. That is
@@ -141,5 +163,15 @@ Three things to stay honest about:
 
 - Move the ~70-line resolver/driver contract haddock from `PostgresqlCodecs` into
   `PostgresqlCodecs.Core`. `AGENTS.md` points at it as authoritative and will need updating.
+- **Fix the `IsScalar` class haddock** (`IsScalar.hs`, currently lines 29–32). It tells instance
+  authors to define instances in terms of `custom`, `enum`, `composite`, `binaryPrimitive`, or
+  `textualPrimitive` — three of which this plan deletes or hides. It is the one place a user is told
+  what to write on the right-hand side, so it goes stale the moment the split lands. New wording:
+  `enum` or `composite`, or the `Scalar` constructor from core for raw authorship.
+- The `custom` haddock's "escape hatch" framing moves onto the `Scalar` constructor in core. Note
+  this is separate from the `columnWith`/`paramWith`/`fieldWith` escape hatch, which is about
+  bypassing `IsScalar` and is unaffected.
+- `AGENTS.md` also describes the `Scalar` layer as "built via `binaryPrimitive`/`textualPrimitive`
+  …, `enum`, `composite`, or `custom`" and lists per-file module contents — both go stale here.
 - `Resolver.hs` carries a blanket `OPTIONS_GHC -Wno-*` pragma suppressing about ten warning classes.
   If it becomes part of a published core API, that should go. Hygiene, not part of this design.
