@@ -1,4 +1,4 @@
-module PostgresqlCodecs.Report
+module PostgresqlCodecs.Core.Report
   ( -- * Report
     Report (..),
 
@@ -20,7 +20,7 @@ module PostgresqlCodecs.Report
 where
 
 import qualified Data.Text as Text
-import PostgresqlCodecs.Prelude
+import PostgresqlCodecs.Core.Prelude
 import qualified TextBuilder
 
 -- | Generic error type that is not intended for pattern matching, but only for rendering error messages.

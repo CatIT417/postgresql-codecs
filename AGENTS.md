@@ -12,7 +12,7 @@ The library is built from five composable layers, described in the `PostgresqlCo
 4. `Columns a` / `Params a` — result-set column decoder and query-parameter encoder, built per-column/per-parameter via `column` / `param`.
 5. `Result a` — full result-set decoding strategy: `oneRow`, `someRow`, `manyRows`, `rowsAffected`, with a `refine` combinator for post-hoc validation.
 
-A sixth, cross-cutting piece, added to fix a class of OID-guessing bugs: **`Resolver`** (`PostgresqlCodecs.Resolver`). Codecs that reference PostgreSQL types whose OIDs can't be known statically (`enum`, `composite`, and `binaryPrimitive`/`textualPrimitive` scalars like `citext`/`hstore` whose `IsPrimitive` instance has no static OID) advertise those types via `unresolvedTypes :: Set (Text, Text)`. A driver collects the union of `unresolvedTypes` across the `Params` and `Result` it's about to use, resolves it against the server catalogue if non-empty, and passes the resulting `Resolver` into `Columns.decoder`/`oids` and `Params.oids`/`binaryEncoder`/`textualEncoder`. **The full contract is documented in the `PostgresqlCodecs` module haddock (`src/postgresql-codecs/PostgresqlCodecs.hs`) — read it before implementing a driver.** Do not re-derive it from source; the haddock is authoritative and this file only summarizes it.
+A sixth, cross-cutting piece, added to fix a class of OID-guessing bugs: **`Resolver`** (`PostgresqlCodecs.Resolver`). Codecs that reference PostgreSQL types whose OIDs can't be known statically (`enum`, `composite`, and `binaryPrimitive`/`textualPrimitive` scalars like `citext`/`hstore` whose `IsPrimitive` instance has no static OID) advertise those types via `unresolvedTypes :: Set (Text, Text)`. A driver collects the union of `unresolvedTypes` across the `Params` and `Result` it's about to use, resolves it against the server catalogue if non-empty, and passes the resulting `Resolver` into `Columns.decoder`/`oids` and `Params.oids`/`binaryEncoder`/`textualEncoder`. **The full contract is documented in the `PostgresqlCodecs.Core` module haddock (`src/postgresql-codecs-core/PostgresqlCodecs/Core.hs`) — read it before implementing a driver.** Do not re-derive it from source; the haddock is authoritative and this file only summarizes it.
 
 `Fields a b` (composite-type field codecs, built with `field` and consumed by `composite`) is the one layer not in the five-layer list above but is part of the same stack.
 
@@ -23,42 +23,52 @@ Also present: `Report` (`PostgresqlCodecs.Report`) — the library's single stru
 ```
 .
 ├── cabal.project                  # Cabal project config (tests: True — see Build commands)
-├── postgresql-codecs.cabal        # Package definition: library, library demo, test-suite integration-test
+├── postgresql-codecs.cabal        # Package definition: library core, library, library demo, test-suite integration-test
 ├── README.md, LICENSE, AGENTS.md
 ├── docs/
 │   └── tickets.md                 # Ticket log for the Resolver work (historical context, not living docs)
 │
 ├── .github/workflows/             # format-and-test.yaml, release.yaml, deploy-docs-to-pages.yaml
 │
-└── src/
-    ├── postgresql-codecs/                     # The library (hs-source-dirs of the main library component)
-    │   ├── PostgresqlCodecs.hs                # Public re-export module; documents the Resolver contract
-    │   └── PostgresqlCodecs/
-    │       ├── Prelude.hs                     # Custom prelude (NoImplicitPrelude); import this, not base Prelude
-    │       ├── Report.hs                      # Report — the one structured error type
-    │       ├── Resolver.hs                    # TypeOids, Resolver — the OID-resolution contract
-    │       ├── Scalar.hs                      # Scalar, IsScalar, binaryPrimitive/textualPrimitive/enum/composite/custom, elementOid/declaredOid
-    │       ├── Fields.hs                      # Fields — composite-type field codecs, field, composite
-    │       ├── Nullability.hs                 # Nullability, nullable, nonNullable
-    │       ├── Dimension.hs                   # Dimension — vector, the array-representation abstraction
-    │       ├── Dimensionality.hs              # Dimensionality, d0–d6
-    │       ├── Dimensionality/Writes.hs        # Binary array-header writes, shared by Dimensionality
-    │       ├── Columns.hs                     # Columns, ConsumesColumns, column
-    │       ├── Params.hs                      # Params, Format, param
-    │       └── Result.hs                      # Result, oneRow/someRow/manyRows/rowsAffected, refine
-    │
-    ├── demo/                                  # library demo — a worked example (enum + composite scalars)
-    │   └── Demo/Types.hs, Demo/Types/Artist.hs, Demo/Types/Genre.hs
-    │
-    └── integration-test/                      # test-suite integration-test (hspec + testcontainers)
-        ├── Spec.hs                            # {-# OPTIONS_GHC -F -pgmF hspec-discover #-}
-        └── IntegrationTest/
-            ├── SpecHook.hs                    # Container/pool lifecycle, one-time schema DDL, runs specs twice
-            ├── Integrations/
-            │   ├── Pq.hs                      # The libpq driver adapter — reference execQuery + Resolver builder
-            │   └── Pq/RowDecoder.hs           # Threads a column-index cursor through ConsumesColumns
-            ├── ColumnsSpec.hs, ParamsSpec.hs, FieldsSpec.hs, ResultSpec.hs,
-            │   ScalarSpec.hs, DimensionSpec.hs, DimensionalitySpec.hs, NullabilitySpec.hs
+├── src/
+│   ├── postgresql-codecs-core/                # The core sublibrary: driver-facing codec anatomy
+│   │   ├── PostgresqlCodecs/Core.hs           # Public facade: driver-contract haddock + re-exports
+│   │   └── PostgresqlCodecs/Core/
+│   │       ├── Prelude.hs                     # Lean prelude (9 deps: no postgresql-types, vector, uuid, etc.)
+│   │       ├── Report.hs                      # Report — the one structured error type
+│   │       ├── Resolver.hs                    # TypeOids, Resolver — the OID-resolution contract
+│   │       ├── Scalar.hs                      # Scalar type + Invariant instance
+│   │       ├── Params.hs                      # Params type + Format + Contravariant/Semigroup/Monoid
+│   │       ├── Columns.hs                     # Columns type + ConsumesColumns + Functor/Applicative
+│   │       └── Result.hs                      # Result type + unresolvedTypes helper
+│   │
+│   └── postgresql-codecs/                    # The main library: app-dev combinators
+│       ├── PostgresqlCodecs.hs                # Public re-export module; app-dev facade
+│       └── PostgresqlCodecs/
+│           ├── Prelude.hs                     # Full prelude (includes postgresql-types, vector, etc.)
+│           ├── Scalar.hs                      # enum, binaryPrimitive, textualPrimitive, elementOid, declaredOid
+│           ├── Fields.hs                      # Fields, field, fieldWith, composite
+│           ├── Nullability.hs                 # Nullability, nullable, nonNullable
+│           ├── Dimension.hs                   # Dimension, vector
+│           ├── Dimensionality.hs              # Dimensionality, d0–d6
+│           ├── Dimensionality/Writes.hs       # Binary array-header writes
+│           ├── Columns.hs                     # column, columnWith
+│           ├── Params.hs                      # param, paramWith
+│           ├── Result.hs                      # oneRow, someRow, manyRows, rowsAffected, refine
+│           └── IsScalar.hs                    # IsScalar class + standard-type instances
+│
+│   ├── demo/                                  # library demo — a worked example (enum + composite scalars)
+│   │   └── Demo/Types.hs, Demo/Types/Artist.hs, Demo/Types/Genre.hs
+│   │
+│   └── integration-test/                      # test-suite integration-test (hspec + testcontainers)
+│       ├── Spec.hs                            # {-# OPTIONS_GHC -F -pgmF hspec-discover #-}
+│       └── IntegrationTest/
+│           ├── SpecHook.hs                    # Container/pool lifecycle, one-time schema DDL, runs specs twice
+│           ├── Integrations/
+│           │   ├── Pq.hs                      # The libpq driver adapter — reference execQuery + Resolver builder
+│           │   └── Pq/RowDecoder.hs           # Threads a column-index cursor through ConsumesColumns
+│           ├── ColumnsSpec.hs, ParamsSpec.hs, FieldsSpec.hs, ResultSpec.hs,
+│           │   ScalarSpec.hs, DimensionSpec.hs, DimensionalitySpec.hs, NullabilitySpec.hs
 ```
 
 There is no `postgresql-types-algebra-0.1/` directory in this tree. `postgresql-types-algebra` and `postgresql-types` are ordinary version-bounded Hackage dependencies (`^>=0.1` each) declared in `postgresql-codecs.cabal`; `postgresql-types-algebra` supplies the `IsPrimitive`/`IsBinaryPrimitive` class algebra that `binaryPrimitive`/`textualPrimitive` build on, and `postgresql-types` supplies the concrete standard-type instances, which `PostgresqlCodecs` re-exports wholesale (`module PostgresqlTypes`) for convenience. Don't confuse this with this package's own `IsScalar` (`PostgresqlCodecs.Scalar`) — same-sounding but unrelated: `IsPrimitive`/`IsBinaryPrimitive` classify a type as a PostgreSQL primitive; `IsScalar` associates any type (primitive, enum, or composite) with its one canonical `Scalar` codec.

@@ -10,6 +10,7 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Core as Core
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Float8
@@ -36,17 +37,10 @@ colorScalar = PostgresqlCodecs.enum "" "param_color" [("red", Red), ("green", Gr
 -- proves the parameter was actually sent in the textual format.
 textOnlyInt4 :: PostgresqlCodecs.Scalar PostgresqlTypes.Int4
 textOnlyInt4 =
-  let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
-   in PostgresqlCodecs.custom
-        base.schemaName
-        base.typeName
-        base.baseOid
-        base.arrayOid
-        False
-        (\_resolver _value -> Right (Write.bWord64 0))
-        base.binaryDecoder
-        base.textualEncoder
-        base.textualDecoder
+  (PostgresqlCodecs.scalar @PostgresqlTypes.Int4)
+    { Core.supportsBinary = False,
+      Core.binaryEncoder = \_resolver _value -> Right (Write.bWord64 0)
+    }
 
 -- | Extract the element-OID slot from an encoded binary array.
 --
@@ -79,11 +73,11 @@ spec = do
         let ps = PostgresqlCodecs.paramWith colorScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
             resolver s n =
               if (s, n) == ("", "param_color")
-                then PostgresqlCodecs.TypeOids realOid 0
-                else PostgresqlCodecs.TypeOids 0 0
+                then Core.TypeOids realOid 0
+                else Core.TypeOids 0 0
         realOid `shouldNotBe` 0
         ps.oids resolver `shouldBe` [realOid]
-        ps.oids (\_ _ -> PostgresqlCodecs.TypeOids 0 0) `shouldBe` [0]
+        ps.oids (\_ _ -> Core.TypeOids 0 0) `shouldBe` [0]
 
     it "binary array header carries the resolved element OID" $ \_env -> do
       let ps =
@@ -95,8 +89,8 @@ spec = do
           sentinelArrayOid = 987655 :: Word32
           resolver s n =
             if (s, n) == ("", "param_color")
-              then PostgresqlCodecs.TypeOids sentinelBaseOid sentinelArrayOid
-              else PostgresqlCodecs.TypeOids 0 0
+              then Core.TypeOids sentinelBaseOid sentinelArrayOid
+              else Core.TypeOids 0 0
       case ps.binaryEncoder resolver (Vector.fromList [Red, Green]) of
         Left report -> expectationFailure ("Encoding failed: " <> show report)
         Right [Just write] ->
@@ -178,13 +172,13 @@ spec = do
       result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 10, PostgresqlTypes.Int4.fromInt32 20)
 
     it "formats are populated from supportsBinary and concatenated" $ \_env -> do
-      let ps :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
+      let ps :: Core.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
           ps =
             contramap fst (PostgresqlCodecs.paramWith textOnlyInt4 PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
               <> contramap snd (PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          emptyPs :: PostgresqlCodecs.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
+          emptyPs :: Core.Params (PostgresqlTypes.Int4, PostgresqlTypes.Int4)
           emptyPs = mempty
-      ps.formats `shouldBe` [PostgresqlCodecs.Textual, PostgresqlCodecs.Binary]
+      ps.formats `shouldBe` [Core.Textual, Core.Binary]
       emptyPs.formats `shouldBe` []
 
     it "supportsBinary=False parameter stays textual alongside a binary parameter" $ \env -> do

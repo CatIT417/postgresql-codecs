@@ -17,7 +17,7 @@ import qualified Data.Text.Read as Text.Read
 import Data.Word (Word32)
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified IntegrationTest.Integrations.Pq.RowDecoder as RowDecoder
-import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Core as PostgresqlCodecs
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
 import Prelude
