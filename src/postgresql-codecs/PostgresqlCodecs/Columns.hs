@@ -5,6 +5,7 @@ module PostgresqlCodecs.Columns where
 import qualified Data.Attoparsec.Text as Atto
 import Data.Set (Set)
 import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.IsScalar
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report)
@@ -71,9 +72,20 @@ instance Applicative Columns where
           decoder = \r -> df r <*> dx r
         }
 
--- | Build a single-column decoder from a scalar, dimensionality, and nullability.
-column :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
-column scalar dimensionality nullability =
+-- | Build a single-column decoder from @a@'s 'IsScalar' instance, a dimensionality, and a
+-- nullability.
+column :: (IsScalar a) => Dimensionality a b -> Nullability b c -> Columns c
+column = columnWith scalar
+
+-- | Build a single-column decoder from an explicit scalar, dimensionality, and nullability.
+--
+-- Reach for this only when @a@ has no fixed static representation to hang an 'IsScalar'
+-- instance on — e.g. a codec resolved at runtime from schema introspection. Never use it to
+-- give a type that already has (or should have) an 'IsScalar' instance a different codec at
+-- some call site; that reintroduces the coupling 'IsScalar' exists to prevent. A type needing
+-- more than one representation should be a distinct newtype with its own instance instead.
+columnWith :: Scalar a -> Dimensionality a b -> Nullability b c -> Columns c
+columnWith scalar dimensionality nullability =
   Columns
     { count = 1,
       unresolvedTypes = scalar.unresolvedTypes,

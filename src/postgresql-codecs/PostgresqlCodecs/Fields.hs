@@ -5,6 +5,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.IsScalar
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report (..))
@@ -98,9 +99,21 @@ fieldOidMismatchReport expectedOid actualOid =
         ]
     }
 
--- | Build a single composite field codec from a scalar, dimensionality, and nullability.
-field :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
-field scalar dimensionality nullability =
+-- | Build a single composite field codec from @a@'s 'IsScalar' instance, a dimensionality, and
+-- a nullability.
+field :: (IsScalar a) => Dimensionality a b -> Nullability b c -> Fields c c
+field = fieldWith scalar
+
+-- | Build a single composite field codec from an explicit scalar, dimensionality, and
+-- nullability.
+--
+-- Reach for this only when @a@ has no fixed static representation to hang an 'IsScalar'
+-- instance on — e.g. a codec resolved at runtime from schema introspection. Never use it to
+-- give a type that already has (or should have) an 'IsScalar' instance a different codec at
+-- some call site; that reintroduces the coupling 'IsScalar' exists to prevent. A type needing
+-- more than one representation should be a distinct newtype with its own instance instead.
+fieldWith :: Scalar a -> Dimensionality a b -> Nullability b c -> Fields c c
+fieldWith scalar dimensionality nullability =
   let Nullability {encoder = enc} = nullability
    in Fields
         { count = 1,

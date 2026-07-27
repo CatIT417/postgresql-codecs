@@ -18,7 +18,7 @@ spec = do
           conn
           "SELECT 42::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
           env.binary
           ()
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
@@ -29,7 +29,7 @@ spec = do
           conn
           "SELECT NULL::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
           env.binary
           ()
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
@@ -40,7 +40,7 @@ spec = do
           conn
           "SELECT NULL::int4"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable) :: PostgresqlCodecs.Result PostgresqlTypes.Int4)
           env.binary
           ()
       result `shouldBe` Left ("Unexpected null" :: PostgresqlCodecs.Report)
@@ -50,8 +50,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4"
-          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
           env.binary
           (Nothing :: Maybe PostgresqlTypes.Int4)
       result `shouldBe` Right (Nothing :: Maybe PostgresqlTypes.Int4)
@@ -61,8 +61,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4"
-          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
           env.binary
           (Just (PostgresqlTypes.Int4.fromInt32 42))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 42))
@@ -72,8 +72,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::int4"
-          (PostgresqlCodecs.param PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nullable))
           env.binary
           (Just (PostgresqlTypes.Int4.fromInt32 99))
       result `shouldBe` Right (Just (PostgresqlTypes.Int4.fromInt32 99))

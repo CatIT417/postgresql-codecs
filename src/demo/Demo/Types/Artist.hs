@@ -16,6 +16,6 @@ instance PostgresqlCodecs.IsScalar Artist where
       ""
       "artist"
       ( Artist
-          <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          <*> lmap (.genre) (PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          <$> lmap (.name) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          <*> lmap (.genre) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
       )

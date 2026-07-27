@@ -249,8 +249,8 @@ spec = do
           execQuery
             conn
             "SELECT $1::movie_genre"
-            (PostgresqlCodecs.param genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-            (PostgresqlCodecs.oneRow (PostgresqlCodecs.column genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+            (PostgresqlCodecs.paramWith genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+            (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith genreScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
             env.binary
             Comedy
         result `shouldBe` Right Comedy
@@ -263,7 +263,7 @@ scalarRoundtrip conn isBinary scalar val pgType =
   execQuery
     conn
     ("SELECT $1::" <> pgType)
-    (PostgresqlCodecs.param scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-    (PostgresqlCodecs.oneRow (PostgresqlCodecs.column scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+    (PostgresqlCodecs.paramWith scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+    (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
     isBinary
     val

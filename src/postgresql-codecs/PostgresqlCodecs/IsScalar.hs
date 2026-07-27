@@ -22,18 +22,24 @@ import qualified PostgresqlTypes.Uuid
 
 -- | Associates a Haskell type with its one canonical 'Scalar' codec.
 --
--- This is purely an opt-in convenience for the common case of "this type has exactly one obvious
--- PostgreSQL representation". It does not replace 'PostgresqlCodecs.Scalar.custom',
--- 'PostgresqlCodecs.Scalar.enum', 'PostgresqlCodecs.Fields.composite',
--- 'PostgresqlCodecs.Scalar.binaryPrimitive' or 'PostgresqlCodecs.Scalar.textualPrimitive' — those
--- remain the way to build a 'Scalar' value explicitly, and are what an instance's 'scalar' method
--- is expected to be defined in terms of.
+-- 'PostgresqlCodecs.column', 'PostgresqlCodecs.param' and 'PostgresqlCodecs.field' require an
+-- instance — there is no way to hand them a 'Scalar' value directly. This forces every Haskell
+-- type used in a codec to have exactly one, named, global PostgreSQL representation, rather than
+-- letting business logic about how to encode a type leak into ad-hoc 'Scalar' values scattered
+-- across call sites. An instance is expected to be defined in terms of
+-- 'PostgresqlCodecs.Scalar.custom', 'PostgresqlCodecs.Scalar.enum',
+-- 'PostgresqlCodecs.Fields.composite', 'PostgresqlCodecs.Scalar.binaryPrimitive' or
+-- 'PostgresqlCodecs.Scalar.textualPrimitive'.
 --
--- Reach for an instance when a type has one obvious mapping (most enums and composites); keep
--- passing a named 'Scalar' value explicitly, without an instance, when a type needs more than
--- one representation (e.g. the same enum mapped against two different PostgreSQL schemas, or a
--- variant built for a test) — a typeclass instance is a single, global, coherence-checked choice
--- per type, so it can't express that.
+-- A type that needs more than one representation (e.g. the same enum mapped against two
+-- different PostgreSQL schemas) should not share one Haskell type across both — a typeclass
+-- instance is a single, global, coherence-checked choice per type, so it can't express that.
+-- Define a distinct newtype per representation instead, each with its own instance.
+-- 'PostgresqlCodecs.columnWith'\/'PostgresqlCodecs.paramWith'\/'PostgresqlCodecs.fieldWith'
+-- remain as an explicit escape hatch taking a 'Scalar' value directly, but only for types with
+-- no fixed static representation to hang an instance on (e.g. a codec resolved at runtime from
+-- schema introspection) — never as a bypass for a type that already has, or should have, an
+-- instance.
 --
 -- There are, and deliberately can never be, instances for 'Maybe' or an array\/vector type:
 -- nullability and dimensionality are chosen explicitly at each 'PostgresqlCodecs.column'\/

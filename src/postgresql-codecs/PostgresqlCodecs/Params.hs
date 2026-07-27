@@ -4,6 +4,7 @@ module PostgresqlCodecs.Params where
 
 import Data.Set (Set)
 import PostgresqlCodecs.Dimensionality
+import PostgresqlCodecs.IsScalar
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Report (Report)
@@ -79,9 +80,20 @@ instance Monoid (Params a) where
         textualEncoder = \_ _ -> Right []
       }
 
--- | Build a single-parameter encoder from a scalar, dimensionality, and nullability.
-param :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
-param scalar dimensionality nullability =
+-- | Build a single-parameter encoder from @a@'s 'IsScalar' instance, a dimensionality, and a
+-- nullability.
+param :: (IsScalar a) => Dimensionality a b -> Nullability b c -> Params c
+param = paramWith scalar
+
+-- | Build a single-parameter encoder from an explicit scalar, dimensionality, and nullability.
+--
+-- Reach for this only when @a@ has no fixed static representation to hang an 'IsScalar'
+-- instance on — e.g. a codec resolved at runtime from schema introspection. Never use it to
+-- give a type that already has (or should have) an 'IsScalar' instance a different codec at
+-- some call site; that reintroduces the coupling 'IsScalar' exists to prevent. A type needing
+-- more than one representation should be a distinct newtype with its own instance instead.
+paramWith :: Scalar a -> Dimensionality a b -> Nullability b c -> Params c
+paramWith scalar dimensionality nullability =
   let Nullability {encoder = enc} = nullability
    in Params
         { count = 1,

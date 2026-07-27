@@ -25,8 +25,8 @@ compositePointScalar =
     "public"
     "composite_point"
     ( CompositePoint
-        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.ptX) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.ptY) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 data CompositeContainer = CompositeContainer {containerPoint :: CompositePoint, containerLabel :: PostgresqlTypes.Text}
@@ -38,8 +38,8 @@ compositeContainerScalar =
     "public"
     "composite_container"
     ( CompositeContainer
-        <$> lmap (.containerPoint) (PostgresqlCodecs.field compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.containerPoint) (PostgresqlCodecs.fieldWith compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.containerLabel) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 data CompositeWithNullable = CompositeWithNullable
@@ -54,8 +54,8 @@ compositeWithNullableScalar =
     "public"
     "composite_with_nullable"
     ( CompositeWithNullable
-        <$> lmap (.cnX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
+        <$> lmap (.cnX) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.cnY) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nullable)
     )
 
 newtype CompositeWithArray = CompositeWithArray {cwaXs :: Vector PostgresqlTypes.Int4}
@@ -70,7 +70,6 @@ compositeWithArrayScalar =
         <$> lmap
           (.cwaXs)
           ( PostgresqlCodecs.field
-              PostgresqlCodecs.binaryPrimitive
               (PostgresqlCodecs.d1 PostgresqlCodecs.nonNullable PostgresqlCodecs.vector)
               PostgresqlCodecs.nonNullable
           )
@@ -88,8 +87,8 @@ mismatchedPointScalar =
     "public"
     "composite_point"
     ( MismatchedPoint
-        <$> lmap (.mpX) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-        <*> lmap (.mpY) (PostgresqlCodecs.field PostgresqlCodecs.binaryPrimitive PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <$> lmap (.mpX) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.mpY) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
     )
 
 spec :: SpecHook.HookedSpec
@@ -101,8 +100,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::composite_point"
-          (PostgresqlCodecs.param compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.paramWith compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith compositePointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           pt
       result `shouldBe` Right pt
@@ -113,8 +112,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::composite_with_nullable"
-          (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.paramWith compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           val
       result `shouldBe` Right val
@@ -125,8 +124,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::composite_with_nullable"
-          (PostgresqlCodecs.param compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.paramWith compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith compositeWithNullableScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           val
       result `shouldBe` Right val
@@ -137,8 +136,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::artist"
-          (PostgresqlCodecs.param PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           val
       result `shouldBe` Right val
@@ -157,8 +156,8 @@ spec = do
         execQuery
           conn
           "SELECT $1::composite_with_array"
-          (PostgresqlCodecs.param compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.paramWith compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith compositeWithArrayScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           val
       result `shouldBe` Right val
@@ -169,7 +168,7 @@ spec = do
           conn
           "SELECT ROW(42, 7)::composite_point"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column mismatchedPointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith mismatchedPointScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       case result of
@@ -182,7 +181,7 @@ spec = do
           conn
           "SELECT ROW(ROW(42, 7)::composite_point, 'hello, world')::composite_container"
           mempty
-          (PostgresqlCodecs.oneRow (PostgresqlCodecs.column compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
+          (PostgresqlCodecs.oneRow (PostgresqlCodecs.columnWith compositeContainerScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable))
           env.binary
           ()
       result

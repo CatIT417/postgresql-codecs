@@ -10,14 +10,22 @@
 --
 -- = Associating a type with its 'Scalar'
 --
--- 'IsScalar' is an optional convenience class: @instance IsScalar T where scalar = ...@ lets
--- 'field' \/ 'column' \/ 'param' pick up @T@'s 'Scalar' from context instead of a named value
--- being threaded through by hand. Every standard PostgreSQL type has an instance already. Write
--- one for your own enum\/composite types when they have exactly one obvious representation; when
--- a type needs more than one (e.g. mapped against two different schemas, which is an antipattern), keep naming and
--- passing 'Scalar' values explicitly instead — a class instance is a single, coherence-checked,
--- global choice per type. See 'IsScalar' for the full reasoning, including why it can never have
--- an instance for 'Maybe' or an array\/vector type.
+-- 'field' \/ 'column' \/ 'param' require an @instance IsScalar T where scalar = ...@ for @T@ —
+-- there is no way to hand them a 'Scalar' value directly. This is deliberate: it forces every
+-- Haskell type used in a codec to have exactly one canonical PostgreSQL representation, named
+-- once, globally, instead of business logic about how to encode a type leaking into ad-hoc
+-- 'Scalar' values scattered across call sites. Every standard PostgreSQL type has an instance
+-- already. Write one for your own enum\/composite types. A type that legitimately needs more
+-- than one representation (e.g. mapped against two different schemas) should not share one
+-- Haskell type across both — define a distinct newtype per representation, each with its own
+-- instance.
+--
+-- 'columnWith' \/ 'paramWith' \/ 'fieldWith' remain as an explicit escape hatch, taking a
+-- 'Scalar' value directly. Reach for them only when there is no fixed static Haskell type to
+-- hang an instance on — e.g. a codec resolved at runtime from schema introspection. They are
+-- not a substitute for an 'IsScalar' instance a type already has or should have. See 'IsScalar'
+-- for the full reasoning, including why it can never have an instance for 'Maybe' or an
+-- array\/vector type.
 --
 -- = Resolving type OIDs
 --
@@ -73,6 +81,7 @@ module PostgresqlCodecs
     Params (..),
     Format (..),
     param,
+    paramWith,
 
     -- * Result sets
     Result (..),
@@ -87,6 +96,7 @@ module PostgresqlCodecs
     Columns (..),
     ConsumesColumns (..),
     column,
+    columnWith,
 
     -- * Nullability
     Nullability,
@@ -119,6 +129,7 @@ module PostgresqlCodecs
     -- * Composite types
     Fields,
     field,
+    fieldWith,
 
     -- * Standard types
     module PostgresqlTypes,
