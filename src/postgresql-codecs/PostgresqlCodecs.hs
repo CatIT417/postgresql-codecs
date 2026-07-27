@@ -129,6 +129,7 @@ import PostgresqlCodecs.Columns
 import PostgresqlCodecs.Dimension
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.Fields
+import PostgresqlCodecs.IsScalar
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Params
 import PostgresqlCodecs.Report (Report (..))
