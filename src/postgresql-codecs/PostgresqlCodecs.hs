@@ -20,12 +20,10 @@
 -- Haskell type across both — define a distinct newtype per representation, each with its own
 -- instance.
 --
--- 'columnWith' \/ 'paramWith' \/ 'fieldWith' remain as an explicit escape hatch, taking a
--- 'Scalar' value directly. Reach for them only when there is no fixed static Haskell type to
--- hang an instance on — e.g. a codec resolved at runtime from schema introspection. They are
--- not a substitute for an 'IsScalar' instance a type already has or should have. See 'IsScalar'
--- for the full reasoning, including why it can never have an instance for 'Maybe' or an
--- array\/vector type.
+-- 'columnWith' \/ 'paramWith' \/ 'fieldWith' take a 'Scalar' directly. Reach for them only when
+-- there is no static Haskell type to hang an instance on — e.g. a codec resolved at runtime from
+-- schema introspection — never as a substitute for an instance a type already has or should have.
+-- See 'IsScalar' for the full reasoning.
 --
 -- = Resolving type OIDs
 --
