@@ -8,7 +8,6 @@ import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
-import qualified PtrPeeker
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Algebra as Algebra
 import qualified PostgresqlTypes.Bool
@@ -19,6 +18,7 @@ import qualified PostgresqlTypes.Int2
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
 import qualified PostgresqlTypes.Uuid
+import qualified PtrPeeker
 import Test.Hspec
 import Prelude
 
@@ -39,7 +39,7 @@ genreScalar =
 -- IsPrimitive instance declaring a non-default schema, for testing that
 -- 'PostgresqlCodecs.binaryPrimitive' honors it instead of hardcoding "".
 
-data SchemaedWidget = SchemaedWidget
+data SchemaedWidget
 
 instance Algebra.IsPrimitive SchemaedWidget where
   schemaName = Tagged (Just "custom_schema")
