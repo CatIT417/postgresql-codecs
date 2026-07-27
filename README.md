@@ -69,5 +69,14 @@ col = PostgresqlCodecs.column PostgresqlCodecs.scalar PostgresqlCodecs.d0 Postgr
 
 If a type needs more than one PostgreSQL representation (e.g. mapped against two different
 schemas, or a test-only variant), skip the instance and keep building and naming `Scalar` values
-explicitly with `enum`/`composite`/`custom` — a class instance is a single, coherence-checked,
-global choice per type, so it can't express that.
+explicitly (`enum`/`composite`, or the `Scalar` record constructor from `PostgresqlCodecs.Core` for a
+wire format those don't cover), and pass them to `columnWith`/`paramWith`/`fieldWith`. A class
+instance is a single, coherence-checked, global choice per type, so it can't express that.
+
+## For driver authors
+
+This package serves two audiences through two modules. Application code imports
+`PostgresqlCodecs` and never sees driver detail. Driver authors import `PostgresqlCodecs.Core`
+instead. It is the codec *anatomy* (the record fields of `Params`, `Columns`, `Result`, `Scalar`,
+plus `ConsumesColumns`, `Resolver`, `TypeOids`, and `Format`) and documents the OID-resolution
+contract a driver must fulfill.

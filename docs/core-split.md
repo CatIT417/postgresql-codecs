@@ -1,6 +1,6 @@
 # Splitting the core (driver-facing) API out
 
-Design note, 2026-07-27. Decided but not yet implemented.
+Design note, 2026-07-27. Iteration 1 - the internal sublibrary below - shipped the same day; iteration 2 (extracting a separate package) remains deferred.
 
 ## The problem
 
@@ -100,6 +100,9 @@ distinction for that pair is carried entirely by `TypeOids (..)`.
 
 ## Iteration 1: an internal sublibrary, not a plain module
 
+> **Status: shipped (2026-07-27).** The subsection [What landed (2026-07-27)](#what-landed-2026-07-27)
+> at the end records the outcome and the few items deferred.
+
 Core goes into a `library core` stanza in the existing `.cabal`, with the main library depending on
 `postgresql-codecs:core`.
 
@@ -135,6 +138,39 @@ type and instances to core, `param` / `column` to the app side — and the cut i
 `textualPrimitive` / `IsScalar` and its instances to the app side. That is what removes the
 `postgresql-types` dependency from core.
 
+### What landed (2026-07-27)
+
+Shipped as described above; verified against the `.cabal` and source tree:
+
+- `library core` stanza with a single exposed module `PostgresqlCodecs.Core` and internal
+  `Core.{Columns,Params,Prelude,Report,Resolver,Result,Scalar}`. Core depends on `attoparsec`,
+  `containers`, `invariant`, `ptr-peeker`, `ptr-poker`, `tagged`, `text`, and `text-builder` - and, as
+  intended, **not** on `postgresql-types` or `postgresql-types-algebra`.
+- The main library lists `reexported-modules: PostgresqlCodecs.Core`, depends on
+  `postgresql-codecs:core`, and re-exports `Params`, `Columns`, `Result`, `Scalar` **abstractly**
+  (no `(..)`). `Report (..)` keeps its constructors on both sides. `custom` is gone;
+  `binaryPrimitive`/`textualPrimitive` live in the internal `PostgresqlCodecs.Scalar` and stay
+  unexported. `enum` and `composite` are the only public ways to obtain a `Scalar`.
+- `Params`, `Columns`, and `Scalar` each split type-plus-instances (core) from smart constructors
+  (app side), as planned; the cut is acyclic.
+- `integration-test` gained an explicit `postgresql-codecs:core` dep, so it consumes the driver API
+  the way a real driver would. `demo` did not, because it never reaches for driver anatomy - which
+  matches the "where they reach for driver types" qualifier.
+- The driver contract haddock moved onto `PostgresqlCodecs.Core`, and the `IsScalar` class haddock now
+  points instance authors at `enum`/`composite` or the core `Scalar` constructor.
+
+Two nits deliberately left:
+
+- The `custom` "escape hatch" framing was **not** re-homed onto the core `Scalar` constructor's
+  haddock (which is plain). The constructor does the job; the prose just does not say so.
+- The blanket `OPTIONS_GHC -Wno-*` pragma still rides on the four core modules that had it before the
+  split (`Columns`, `Params`, `Resolver`, `Scalar`) - the hygiene item already flagged below as out of
+  scope.
+
+Still pending (see "Also in scope" below): `AGENTS.md`'s `Scalar`-layer description and per-file
+project-structure tree still name `custom` / `binaryPrimitive` / `textualPrimitive` and the pre-split
+layout. Iteration 2 is unchanged.
+
 ## Iteration 2: extracting the package
 
 **Trigger:** when `postgresql-codecs` starts being promoted as a library for defining codecs. That is
@@ -161,17 +197,20 @@ Three things to stay honest about:
 
 ## Also in scope
 
-- Move the ~70-line resolver/driver contract haddock from `PostgresqlCodecs` into
+Status after iteration 1: the two haddock moves shipped; the `AGENTS.md` rewrites did not, and the
+`Resolver.hs` hygiene item remains (and now applies to four core modules).
+
+- **[shipped]** Move the ~70-line resolver/driver contract haddock from `PostgresqlCodecs` into
   `PostgresqlCodecs.Core`. `AGENTS.md` points at it as authoritative and will need updating.
-- **Fix the `IsScalar` class haddock** (`IsScalar.hs`, currently lines 29–32). It tells instance
+- **[shipped]** Fix the `IsScalar` class haddock (`IsScalar.hs`, currently lines 29–32). It tells instance
   authors to define instances in terms of `custom`, `enum`, `composite`, `binaryPrimitive`, or
   `textualPrimitive` — three of which this plan deletes or hides. It is the one place a user is told
   what to write on the right-hand side, so it goes stale the moment the split lands. New wording:
   `enum` or `composite`, or the `Scalar` constructor from core for raw authorship.
-- The `custom` haddock's "escape hatch" framing moves onto the `Scalar` constructor in core. Note
+- **[pending, minor]** The `custom` haddock's "escape hatch" framing moves onto the `Scalar` constructor in core. Note
   this is separate from the `columnWith`/`paramWith`/`fieldWith` escape hatch, which is about
   bypassing `IsScalar` and is unaffected.
-- `AGENTS.md` also describes the `Scalar` layer as "built via `binaryPrimitive`/`textualPrimitive`
+- **[pending]** `AGENTS.md` also describes the `Scalar` layer as "built via `binaryPrimitive`/`textualPrimitive`
   …, `enum`, `composite`, or `custom`" and lists per-file module contents — both go stale here.
-- `Resolver.hs` carries a blanket `OPTIONS_GHC -Wno-*` pragma suppressing about ten warning classes.
+- **[out of scope]** `Resolver.hs` carries a blanket `OPTIONS_GHC -Wno-*` pragma suppressing about ten warning classes.
   If it becomes part of a published core API, that should go. Hygiene, not part of this design.
