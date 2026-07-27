@@ -269,6 +269,10 @@ instance IsScalar (Types.Multirange Types.Timestamptz) where
 -- single obvious Haskell representation (e.g. 'Types.Numeric', 'Types.Money', 'Types.Char' vs.
 -- 'Types.Varchar' vs. 'Types.Bpchar' vs. 'Types.Citext' all wanting @Text@) are left to be
 -- addressed with an explicitly named 'Scalar' instead.
+--
+-- 'Types.Range' and 'Types.Multirange' likewise get an instance for each of the plain Haskell
+-- types above that has a range-element counterpart ('Int32', 'Int64', 'Day', 'LocalTime',
+-- 'UTCTime'), riding on 'fmap' over the corresponding wrapper-typed range\/multirange instance.
 
 -- | Maps to @bool@.
 instance IsScalar Bool where
@@ -325,3 +329,47 @@ instance IsScalar UTCTime where
 -- | Maps to @uuid@.
 instance IsScalar UUID where
   scalar = invmap PostgresqlTypes.Uuid.toUUID PostgresqlTypes.Uuid.fromUUID binaryPrimitive
+
+-- | Maps to @int4range@.
+instance IsScalar (Types.Range Int32) where
+  scalar = invmap (fmap PostgresqlTypes.Int4.toInt32) (fmap PostgresqlTypes.Int4.fromInt32) binaryPrimitive
+
+-- | Maps to @int8range@.
+instance IsScalar (Types.Range Int64) where
+  scalar = invmap (fmap PostgresqlTypes.Int8.toInt64) (fmap PostgresqlTypes.Int8.fromInt64) binaryPrimitive
+
+-- | Maps to @daterange@.
+--
+-- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+instance IsScalar (Types.Range Day) where
+  scalar = invmap (fmap PostgresqlTypes.Date.toDay) (fmap PostgresqlTypes.Date.normalizeFromDay) binaryPrimitive
+
+-- | Maps to @tsrange@.
+instance IsScalar (Types.Range LocalTime) where
+  scalar = invmap (fmap PostgresqlTypes.Timestamp.toLocalTime) (fmap PostgresqlTypes.Timestamp.normalizeFromLocalTime) binaryPrimitive
+
+-- | Maps to @tstzrange@.
+instance IsScalar (Types.Range UTCTime) where
+  scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
+
+-- | Maps to @int4multirange@.
+instance IsScalar (Types.Multirange Int32) where
+  scalar = invmap (fmap PostgresqlTypes.Int4.toInt32) (fmap PostgresqlTypes.Int4.fromInt32) binaryPrimitive
+
+-- | Maps to @int8multirange@.
+instance IsScalar (Types.Multirange Int64) where
+  scalar = invmap (fmap PostgresqlTypes.Int8.toInt64) (fmap PostgresqlTypes.Int8.fromInt64) binaryPrimitive
+
+-- | Maps to @datemultirange@.
+--
+-- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+instance IsScalar (Types.Multirange Day) where
+  scalar = invmap (fmap PostgresqlTypes.Date.toDay) (fmap PostgresqlTypes.Date.normalizeFromDay) binaryPrimitive
+
+-- | Maps to @tsmultirange@.
+instance IsScalar (Types.Multirange LocalTime) where
+  scalar = invmap (fmap PostgresqlTypes.Timestamp.toLocalTime) (fmap PostgresqlTypes.Timestamp.normalizeFromLocalTime) binaryPrimitive
+
+-- | Maps to @tstzmultirange@.
+instance IsScalar (Types.Multirange UTCTime) where
+  scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
