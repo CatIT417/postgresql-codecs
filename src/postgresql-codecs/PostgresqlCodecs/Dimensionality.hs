@@ -3,11 +3,11 @@ module PostgresqlCodecs.Dimensionality where
 import qualified Control.Monad.Trans.State as State
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Text as Text
+import PostgresqlCodecs.Core (Report (..), toText)
 import PostgresqlCodecs.Dimension
 import qualified PostgresqlCodecs.Dimensionality.Writes as Writes
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Report (Report (..), toText)
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder

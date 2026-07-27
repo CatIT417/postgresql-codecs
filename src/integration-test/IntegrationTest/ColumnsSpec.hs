@@ -6,6 +6,7 @@ import Data.Word (Word32)
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Core as Core
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
@@ -29,9 +30,9 @@ spec = do
           sentinelArrayOid = 424243 :: Word32
           resolver s n =
             if (s, n) == ("", "column_color")
-              then PostgresqlCodecs.TypeOids sentinelBaseOid sentinelArrayOid
-              else PostgresqlCodecs.TypeOids 0 0
-          zeroResolver _ _ = PostgresqlCodecs.TypeOids 0 0
+              then Core.TypeOids sentinelBaseOid sentinelArrayOid
+              else Core.TypeOids 0 0
+          zeroResolver _ _ = Core.TypeOids 0 0
           scalarColumn =
             PostgresqlCodecs.columnWith colorScalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
           arrayColumn :: PostgresqlCodecs.Columns (Vector Color)

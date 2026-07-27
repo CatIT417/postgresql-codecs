@@ -93,11 +93,44 @@ common test
     -threaded
     -with-rtsopts=-N
 
+-- | Driver-facing codec anatomy: the record representations a driver
+-- deconstructs, plus the small vocabulary they are written in. Has no opinion
+-- about which PostgreSQL types exist, and notably does not depend on
+-- @postgresql-types@ or @postgresql-types-algebra@.
+library core
+  import: base
+  hs-source-dirs: src/postgresql-codecs-core
+  exposed-modules:
+    PostgresqlCodecs.Core
+
+  other-modules:
+    PostgresqlCodecs.Core.Columns
+    PostgresqlCodecs.Core.Params
+    PostgresqlCodecs.Core.Prelude
+    PostgresqlCodecs.Core.Report
+    PostgresqlCodecs.Core.Resolver
+    PostgresqlCodecs.Core.Result
+    PostgresqlCodecs.Core.Scalar
+
+  build-depends:
+    attoparsec >=0.14 && <0.15,
+    base >=4.11 && <5,
+    containers >=0.6 && <0.9,
+    invariant ^>=0.6.4,
+    ptr-peeker ^>=0.2,
+    ptr-poker ^>=0.1.3,
+    tagged ^>=0.8.9,
+    text >=1.2 && <3,
+    text-builder ^>=1.0.0.4
+
 library
   import: base
   hs-source-dirs: src/postgresql-codecs
   exposed-modules:
     PostgresqlCodecs
+
+  reexported-modules:
+    PostgresqlCodecs.Core
 
   other-modules:
     PostgresqlCodecs.Columns
@@ -109,8 +142,6 @@ library
     PostgresqlCodecs.Nullability
     PostgresqlCodecs.Params
     PostgresqlCodecs.Prelude
-    PostgresqlCodecs.Report
-    PostgresqlCodecs.Resolver
     PostgresqlCodecs.Result
     PostgresqlCodecs.Scalar
 
@@ -122,6 +153,7 @@ library
     invariant ^>=0.6.4,
     lawful-conversions ^>=0.3,
     mtl >=2.2 && <3,
+    postgresql-codecs:core,
     postgresql-types ^>=0.1.5,
     postgresql-types-algebra ^>=0.2,
     profunctors ^>=5.6 && <6,
@@ -179,15 +211,14 @@ test-suite integration-test
     containers >=0.6 && <0.9,
     hspec >=2.11 && <2.12,
     postgresql-codecs,
+    postgresql-codecs:core,
     postgresql-codecs:demo,
     postgresql-libpq >=0.9 && <0.12,
     postgresql-types ^>=0.1.5,
-    postgresql-types-algebra ^>=0.2,
     profunctors ^>=5.6 && <6,
     ptr-peeker ^>=0.2,
     ptr-poker ^>=0.1.3,
     resource-pool >=0.4 && <0.5,
-    tagged ^>=0.8.9,
     testcontainers >=0.5 && <0.7,
     testcontainers-postgresql,
     text >=1.2 && <3,

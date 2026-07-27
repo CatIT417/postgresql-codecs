@@ -2,8 +2,9 @@ module PostgresqlCodecs.IsScalar where
 
 import Data.Scientific (Scientific)
 import qualified GHC.TypeLits as TypeLits
+import PostgresqlCodecs.Core (Scalar)
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Scalar
+import PostgresqlCodecs.Scalar (binaryPrimitive)
 import qualified PostgresqlTypes as Types
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
@@ -27,9 +28,9 @@ import qualified PostgresqlTypes.Uuid
 -- type used in a codec to have exactly one, named, global PostgreSQL representation, rather than
 -- letting business logic about how to encode a type leak into ad-hoc 'Scalar' values scattered
 -- across call sites. An instance is expected to be defined in terms of
--- 'PostgresqlCodecs.Scalar.custom', 'PostgresqlCodecs.Scalar.enum',
--- 'PostgresqlCodecs.Fields.composite', 'PostgresqlCodecs.Scalar.binaryPrimitive' or
--- 'PostgresqlCodecs.Scalar.textualPrimitive'.
+-- 'PostgresqlCodecs.enum' or 'PostgresqlCodecs.Fields.composite'; for a type with a wire
+-- format this library has no other constructor for, drop to the 'Scalar' record constructor
+-- from "PostgresqlCodecs.Core" for raw authorship.
 --
 -- A type that needs more than one representation (e.g. the same enum mapped against two
 -- different PostgreSQL schemas) should not share one Haskell type across both — a typeclass

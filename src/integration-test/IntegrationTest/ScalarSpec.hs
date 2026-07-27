@@ -2,14 +2,11 @@ module IntegrationTest.ScalarSpec (spec) where
 
 import qualified Data.ByteString as BS
 import qualified Data.Pool as Pool
-import qualified Data.Set as Set
-import Data.Tagged (Tagged (..))
 import qualified Database.PostgreSQL.LibPQ as PQ
 import IntegrationTest.Integrations.Pq (execQuery)
 import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
-import qualified PostgresqlTypes.Algebra as Algebra
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
 import qualified PostgresqlTypes.Float4
@@ -18,7 +15,6 @@ import qualified PostgresqlTypes.Int2
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
 import qualified PostgresqlTypes.Uuid
-import qualified PtrPeeker
 import Test.Hspec
 import Prelude
 
@@ -35,129 +31,16 @@ genreScalar =
     "movie_genre"
     [("Comedy", Comedy), ("Action", Action), ("Drama", Drama)]
 
--- ---------------------------------------------------------------------------
--- IsPrimitive instance declaring a non-default schema, for testing that
--- 'PostgresqlCodecs.binaryPrimitive' honors it instead of hardcoding "".
-
-data SchemaedWidget
-
-instance Algebra.IsPrimitive SchemaedWidget where
-  schemaName = Tagged (Just "custom_schema")
-  typeName = Tagged "widget"
-  textualEncoder = error "not exercised by this test"
-  textualDecoder = error "not exercised by this test"
-
-instance Algebra.IsBinaryPrimitive SchemaedWidget where
-  binaryEncoder = error "not exercised by this test"
-  binaryDecoder = error "not exercised by this test"
-
--- ---------------------------------------------------------------------------
--- IsPrimitive instance with no IsBinaryPrimitive instance, for testing that
--- 'PostgresqlCodecs.textualPrimitive' declines binary support.
-
-data TextOnlyWidget = TextOnlyWidget
-
-instance Algebra.IsPrimitive TextOnlyWidget where
-  schemaName = Tagged Nothing
-  typeName = Tagged "text_only_widget"
-  textualEncoder = error "not exercised by this test"
-  textualDecoder = error "not exercised by this test"
-
 spec :: SpecHook.HookedSpec
 spec = do
   describe "Scalar" $ do
-    describe "binaryPrimitive unresolvedTypes" $ do
-      it "is empty when both OIDs are statically known" $ \_env ->
-        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4).unresolvedTypes `shouldBe` mempty
-
-      it "contains the type itself when the OIDs are not statically known" $ \_env ->
-        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Citext).unresolvedTypes
-          `shouldBe` Set.singleton ("", "citext")
-
-      it "qualifies the unresolved type with the instance's declared schema" $ \_env ->
-        (PostgresqlCodecs.binaryPrimitive @SchemaedWidget).unresolvedTypes
-          `shouldBe` Set.singleton ("custom_schema", "widget")
-
-    describe "binaryPrimitive schemaName" $ do
-      it "is empty when the instance declares no schema" $ \_env ->
-        (PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4).schemaName `shouldBe` ""
-
-      it "matches the instance's declared schema" $ \_env ->
-        (PostgresqlCodecs.binaryPrimitive @SchemaedWidget).schemaName `shouldBe` "custom_schema"
-
-    describe "textualPrimitive" $ do
-      it "reports supportsBinary as False" $ \_env ->
-        (PostgresqlCodecs.textualPrimitive @TextOnlyWidget).supportsBinary `shouldBe` False
-
-      it "rejects binary encoding" $ \_env -> do
-        let scalar = PostgresqlCodecs.textualPrimitive @TextOnlyWidget
-        case scalar.binaryEncoder (\_ _ -> PostgresqlCodecs.TypeOids 0 0) TextOnlyWidget of
-          Left _ -> pure ()
-          Right _ -> expectationFailure "expected binary encoding to be rejected"
-
-      it "rejects binary decoding" $ \_env -> do
-        let scalar = PostgresqlCodecs.textualPrimitive @TextOnlyWidget
-            result =
-              PtrPeeker.runVariableOnByteString
-                (scalar.binaryDecoder (\_ _ -> PostgresqlCodecs.TypeOids 0 0))
-                BS.empty
-        case result of
-          Right (Left _) -> pure ()
-          _ -> expectationFailure "expected binary decoding to be rejected"
-
-    describe "custom" $ do
-      it "passes supportsBinary through" $ \_env -> do
-        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
-            scalar =
-              PostgresqlCodecs.custom
-                base.schemaName
-                base.typeName
-                base.baseOid
-                base.arrayOid
-                False
-                base.binaryEncoder
-                base.binaryDecoder
-                base.textualEncoder
-                base.textualDecoder
-        scalar.supportsBinary `shouldBe` False
-
-      it "derives unresolvedTypes as empty when both OIDs are given" $ \_env -> do
-        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
-            scalar =
-              PostgresqlCodecs.custom
-                base.schemaName
-                base.typeName
-                base.baseOid
-                base.arrayOid
-                True
-                base.binaryEncoder
-                base.binaryDecoder
-                base.textualEncoder
-                base.textualDecoder
-        scalar.unresolvedTypes `shouldBe` mempty
-
-      it "derives unresolvedTypes as the type itself when either OID is missing" $ \_env -> do
-        let base = PostgresqlCodecs.binaryPrimitive @PostgresqlTypes.Int4
-            scalar =
-              PostgresqlCodecs.custom
-                "public"
-                "widget"
-                Nothing
-                base.arrayOid
-                True
-                base.binaryEncoder
-                base.binaryDecoder
-                base.textualEncoder
-                base.textualDecoder
-        scalar.unresolvedTypes `shouldBe` Set.singleton ("public", "widget")
-
     describe "binaryPrimitive roundtrips" $ do
       it "int2" $ \env -> do
         result <- Pool.withResource env.pool $ \conn ->
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Int2)
             (PostgresqlTypes.Int2.fromInt16 42)
             "int2"
         result `shouldBe` Right (PostgresqlTypes.Int2.fromInt16 42)
@@ -167,7 +50,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Int4)
             (PostgresqlTypes.Int4.fromInt32 42)
             "int4"
         result `shouldBe` Right (PostgresqlTypes.Int4.fromInt32 42)
@@ -177,7 +60,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Int8)
             (PostgresqlTypes.Int8.fromInt64 9876543210)
             "int8"
         result `shouldBe` Right (PostgresqlTypes.Int8.fromInt64 9876543210)
@@ -187,7 +70,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Float4)
             (PostgresqlTypes.Float4.fromFloat 3.14)
             "float4"
         result `shouldBe` Right (PostgresqlTypes.Float4.fromFloat 3.14)
@@ -197,7 +80,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Float8)
             (PostgresqlTypes.Float8.fromDouble 3.14)
             "float8"
         result `shouldBe` Right (PostgresqlTypes.Float8.fromDouble 3.14)
@@ -207,7 +90,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Text)
             ("hello" :: PostgresqlTypes.Text)
             "text"
         result `shouldBe` Right ("hello" :: PostgresqlTypes.Text)
@@ -217,7 +100,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Bool)
             (PostgresqlTypes.Bool.fromBool True)
             "bool"
         result `shouldBe` Right (PostgresqlTypes.Bool.fromBool True)
@@ -227,7 +110,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Bytea)
             (PostgresqlTypes.Bytea.fromByteString "hello")
             "bytea"
         result `shouldBe` Right (PostgresqlTypes.Bytea.fromByteString "hello")
@@ -238,7 +121,7 @@ spec = do
           scalarRoundtrip
             conn
             env.binary
-            PostgresqlCodecs.binaryPrimitive
+            (PostgresqlCodecs.scalar @PostgresqlTypes.Uuid)
             val
             "uuid"
         result `shouldBe` Right val

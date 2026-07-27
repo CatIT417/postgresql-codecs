@@ -6,7 +6,7 @@ where
 
 import Data.String (fromString)
 import qualified Database.PostgreSQL.LibPQ as Pq
-import qualified PostgresqlCodecs
+import qualified PostgresqlCodecs.Core as PostgresqlCodecs
 import qualified PtrPeeker
 import Prelude
 

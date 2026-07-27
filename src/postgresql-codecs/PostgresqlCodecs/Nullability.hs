@@ -1,7 +1,7 @@
 module PostgresqlCodecs.Nullability where
 
+import PostgresqlCodecs.Core (Report)
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Report (Report)
 
 -- | Describes how NULL values are handled for a specific field or column.
 -- @a@ is the non-null element type; @b@ is the decoded result type (e.g. @a@ or @Maybe a@).

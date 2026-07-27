@@ -4,55 +4,15 @@ module PostgresqlCodecs.Scalar where
 
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Map.Strict as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
+import PostgresqlCodecs.Core (Report (..), Resolver, Scalar (..), TypeOids (..))
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Report (Report (..))
-import PostgresqlCodecs.Resolver
 import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
-
--- | Full codec specification for a single PostgreSQL scalar type.
--- Carries the schema\/type name, optional statically-known OIDs, a binary-support
--- flag, and binary\/textual encoder\/decoder pairs.
-data Scalar a = Scalar
-  { -- | Schema name. If empty, the default schema will be used.
-    schemaName :: Text,
-    -- | Type name.
-    typeName :: Text,
-    -- | Statically known OID for the type.
-    -- When unspecified, the OID may be determined at runtime by looking up by name.
-    baseOid :: Maybe Word32,
-    -- | Statically known OID for the array-type with this type as the element.
-    -- When unspecified, the OID may be determined at runtime by looking up by name.
-    -- It may also mean that there may be no array type containing this type, which is the case in attempts to double-nest arrays.
-    arrayOid :: Maybe Word32,
-    -- | Whether this scalar type supports binary encoding/decoding.
-    supportsBinary :: Bool,
-    -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
-    -- or array OID is not statically known and therefore must be resolved at runtime.
-    unresolvedTypes :: Set (Text, Text),
-    binaryEncoder :: Resolver -> a -> Either Report Write.Write,
-    binaryDecoder :: Resolver -> PtrPeeker.Variable (Either Report a),
-    -- | Represent in Postgres textual format.
-    textualEncoder :: Resolver -> a -> Either Report TextBuilder.TextBuilder,
-    -- | Decode from Postgres textual format.
-    textualDecoder :: Resolver -> Atto.Parser a
-  }
-
-instance Invariant Scalar where
-  invmap f g Scalar {..} =
-    Scalar
-      { binaryEncoder = \r -> binaryEncoder r . g,
-        binaryDecoder = \r -> fmap (fmap f) (binaryDecoder r),
-        textualEncoder = \r -> textualEncoder r . g,
-        textualDecoder = \r -> fmap f (textualDecoder r),
-        ..
-      }
 
 -- | OID of the scalar's own element type, resolved by name when not statically known.
 -- Returns 0 when the resolver cannot determine it.
@@ -75,43 +35,6 @@ declaredOid scalar dims resolver =
       Just o -> o
       Nothing -> (resolver scalar.schemaName scalar.typeName).arrayOid
     else elementOid scalar resolver
-
--- | Build a 'Scalar' from raw codec functions, for types that don't fit 'binaryPrimitive',
--- 'textualPrimitive', or 'enum' —
--- e.g. a type whose binary wire format the server doesn't support, or one this library has no
--- other constructor for.
-custom ::
-  -- | Schema name. Empty for the default schema.
-  Text ->
-  -- | Type name.
-  Text ->
-  -- | Statically known base OID, if any.
-  Maybe Word32 ->
-  -- | Statically known array OID, if any.
-  Maybe Word32 ->
-  -- | Whether the type supports binary encoding/decoding.
-  Bool ->
-  (Resolver -> a -> Either Report Write.Write) ->
-  (Resolver -> PtrPeeker.Variable (Either Report a)) ->
-  (Resolver -> a -> Either Report TextBuilder.TextBuilder) ->
-  (Resolver -> Atto.Parser a) ->
-  Scalar a
-custom schemaName typeName baseOid arrayOid supportsBinary binaryEncoder binaryDecoder textualEncoder textualDecoder =
-  Scalar
-    { schemaName,
-      typeName,
-      baseOid,
-      arrayOid,
-      supportsBinary,
-      unresolvedTypes =
-        if isNothing baseOid || isNothing arrayOid
-          then Set.singleton (schemaName, typeName)
-          else mempty,
-      binaryEncoder,
-      binaryDecoder,
-      textualEncoder,
-      textualDecoder
-    }
 
 -- | Derive a 'Scalar' from a @postgresql-types@ 'PostgresqlTypes.IsBinaryPrimitive' instance,
 -- supporting both the binary and textual wire formats.

@@ -4,13 +4,12 @@ import qualified Data.Attoparsec.Text as Atto
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import PostgresqlCodecs.Core (Report (..), Resolver, Scalar (..))
 import PostgresqlCodecs.Dimensionality
 import PostgresqlCodecs.IsScalar
 import PostgresqlCodecs.Nullability
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Report (Report (..))
-import PostgresqlCodecs.Resolver
-import PostgresqlCodecs.Scalar
+import PostgresqlCodecs.Scalar (declaredOid, elementOid)
 import qualified PtrPeeker
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
