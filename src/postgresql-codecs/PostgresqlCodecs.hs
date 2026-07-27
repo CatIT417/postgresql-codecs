@@ -14,7 +14,7 @@
 -- 'field' \/ 'column' \/ 'param' pick up @T@'s 'Scalar' from context instead of a named value
 -- being threaded through by hand. Every standard PostgreSQL type has an instance already. Write
 -- one for your own enum\/composite types when they have exactly one obvious representation; when
--- a type needs more than one (e.g. mapped against two different schemas), keep naming and
+-- a type needs more than one (e.g. mapped against two different schemas, which is an antipattern), keep naming and
 -- passing 'Scalar' values explicitly instead — a class instance is a single, coherence-checked,
 -- global choice per type. See 'IsScalar' for the full reasoning, including why it can never have
 -- an instance for 'Maybe' or an array\/vector type.
