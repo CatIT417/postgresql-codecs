@@ -1,5 +1,6 @@
 module PostgresqlCodecs.IsScalar where
 
+import Data.Scientific (Scientific)
 import qualified GHC.TypeLits as TypeLits
 import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Scalar
@@ -12,6 +13,7 @@ import qualified PostgresqlTypes.Float8
 import qualified PostgresqlTypes.Int2
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
+import qualified PostgresqlTypes.Numeric
 import qualified PostgresqlTypes.Text
 import qualified PostgresqlTypes.Time
 import qualified PostgresqlTypes.Timestamp
@@ -273,6 +275,10 @@ instance IsScalar (Types.Multirange Types.Timestamptz) where
 -- 'Types.Range' and 'Types.Multirange' likewise get an instance for each of the plain Haskell
 -- types above that has a range-element counterpart ('Int32', 'Int64', 'Day', 'LocalTime',
 -- 'UTCTime'), riding on 'fmap' over the corresponding wrapper-typed range\/multirange instance.
+--
+-- 'Scientific' maps to unconstrained @numeric@ (@Types.Numeric 0 0@ — see its Haddock), the only
+-- precision\/scale choice with no column-specific meaning to pick for it. A column declared with
+-- an explicit @numeric(precision, scale)@ still needs 'Types.Numeric' directly.
 
 -- | Maps to @bool@.
 instance IsScalar Bool where
@@ -329,6 +335,17 @@ instance IsScalar UTCTime where
 -- | Maps to @uuid@.
 instance IsScalar UUID where
   scalar = invmap PostgresqlTypes.Uuid.toUUID PostgresqlTypes.Uuid.fromUUID binaryPrimitive
+
+-- | Maps to unconstrained @numeric@.
+--
+-- Encoding silently maps @NaN@\/@Infinity@\/@-Infinity@ (which 'Scientific' cannot represent) to
+-- @0@, and clamps to PostgreSQL's numeric limits.
+instance IsScalar Scientific where
+  scalar =
+    invmap
+      PostgresqlTypes.Numeric.normalizeToScientific
+      PostgresqlTypes.Numeric.normalizeFromScientific
+      (binaryPrimitive @(Types.Numeric 0 0))
 
 -- | Maps to @int4range@.
 instance IsScalar (Types.Range Int32) where
