@@ -1,8 +1,22 @@
 module PostgresqlCodecs.IsScalar where
 
 import qualified GHC.TypeLits as TypeLits
+import PostgresqlCodecs.Prelude
 import PostgresqlCodecs.Scalar
 import qualified PostgresqlTypes as Types
+import qualified PostgresqlTypes.Bool
+import qualified PostgresqlTypes.Bytea
+import qualified PostgresqlTypes.Date
+import qualified PostgresqlTypes.Float4
+import qualified PostgresqlTypes.Float8
+import qualified PostgresqlTypes.Int2
+import qualified PostgresqlTypes.Int4
+import qualified PostgresqlTypes.Int8
+import qualified PostgresqlTypes.Text
+import qualified PostgresqlTypes.Time
+import qualified PostgresqlTypes.Timestamp
+import qualified PostgresqlTypes.Timestamptz
+import qualified PostgresqlTypes.Uuid
 
 -- | Associates a Haskell type with its one canonical 'Scalar' codec.
 --
@@ -192,3 +206,72 @@ instance IsScalar Types.Hstore where
 -- | Maps to @tsvector@.
 instance IsScalar Types.Tsvector where
   scalar = binaryPrimitive
+
+-- * Standard Haskell type instances
+
+--
+
+-- $haskellInstances
+--
+-- A handful of common standard-library types get an instance too, each riding on the
+-- corresponding @postgresql-types@ wrapper's instance above via 'invmap'. This is not an attempt
+-- to cover every type in the section above with a plain-Haskell counterpart — types with no
+-- single obvious Haskell representation (e.g. 'Types.Numeric', 'Types.Money', 'Types.Char' vs.
+-- 'Types.Varchar' vs. 'Types.Bpchar' vs. 'Types.Citext' all wanting @Text@) are left to be
+-- addressed with an explicitly named 'Scalar' instead.
+
+-- | Maps to @bool@.
+instance IsScalar Bool where
+  scalar = invmap PostgresqlTypes.Bool.toBool PostgresqlTypes.Bool.fromBool binaryPrimitive
+
+-- | Maps to @int2@.
+instance IsScalar Int16 where
+  scalar = invmap PostgresqlTypes.Int2.toInt16 PostgresqlTypes.Int2.fromInt16 binaryPrimitive
+
+-- | Maps to @int4@.
+instance IsScalar Int32 where
+  scalar = invmap PostgresqlTypes.Int4.toInt32 PostgresqlTypes.Int4.fromInt32 binaryPrimitive
+
+-- | Maps to @int8@.
+instance IsScalar Int64 where
+  scalar = invmap PostgresqlTypes.Int8.toInt64 PostgresqlTypes.Int8.fromInt64 binaryPrimitive
+
+-- | Maps to @float4@.
+instance IsScalar Float where
+  scalar = invmap PostgresqlTypes.Float4.toFloat PostgresqlTypes.Float4.fromFloat binaryPrimitive
+
+-- | Maps to @float8@.
+instance IsScalar Double where
+  scalar = invmap PostgresqlTypes.Float8.toDouble PostgresqlTypes.Float8.fromDouble binaryPrimitive
+
+-- | Maps to @text@.
+--
+-- Encoding silently strips any NUL characters, which @text@ cannot represent.
+instance IsScalar Text where
+  scalar = invmap PostgresqlTypes.Text.toText PostgresqlTypes.Text.normalizeFromText binaryPrimitive
+
+-- | Maps to @bytea@.
+instance IsScalar ByteString where
+  scalar = invmap PostgresqlTypes.Bytea.toByteString PostgresqlTypes.Bytea.fromByteString binaryPrimitive
+
+-- | Maps to @date@.
+--
+-- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+instance IsScalar Day where
+  scalar = invmap PostgresqlTypes.Date.toDay PostgresqlTypes.Date.normalizeFromDay binaryPrimitive
+
+-- | Maps to @time@.
+instance IsScalar TimeOfDay where
+  scalar = invmap PostgresqlTypes.Time.toTimeOfDay PostgresqlTypes.Time.normalizeFromTimeOfDay binaryPrimitive
+
+-- | Maps to @timestamp@.
+instance IsScalar LocalTime where
+  scalar = invmap PostgresqlTypes.Timestamp.toLocalTime PostgresqlTypes.Timestamp.normalizeFromLocalTime binaryPrimitive
+
+-- | Maps to @timestamptz@.
+instance IsScalar UTCTime where
+  scalar = invmap PostgresqlTypes.Timestamptz.toUtcTime PostgresqlTypes.Timestamptz.normalizeFromUtcTime binaryPrimitive
+
+-- | Maps to @uuid@.
+instance IsScalar UUID where
+  scalar = invmap PostgresqlTypes.Uuid.toUUID PostgresqlTypes.Uuid.fromUUID binaryPrimitive
