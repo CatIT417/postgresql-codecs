@@ -7,7 +7,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text.Encoding
-import PostgresqlCodecs.Core (Report (..), Resolver, Scalar (..), TypeOids (..))
+import PostgresqlCodecs.Core (Report (..), Resolver, Scalar (..), TypeOids (..), toText)
 import PostgresqlCodecs.Prelude
 import qualified PostgresqlTypes.Algebra as PostgresqlTypes
 import qualified PtrPeeker
@@ -125,6 +125,28 @@ textualPrimitive =
           textualEncoder = \_resolver a -> Right (PostgresqlTypes.textualEncoder a),
           textualDecoder = \_resolver -> PostgresqlTypes.textualDecoder
         }
+
+-- | Reinterpret a 'Scalar' at a Haskell type that covers only part of its PostgreSQL domain:
+-- every value of the narrower type maps back to the wider one, but the reverse mapping is
+-- allowed to reject.
+--
+-- This is the partial counterpart to 'invmap', whose 'Invariant' instance requires both
+-- directions to be total. Reach for it when the narrower type cannot represent some value the
+-- server may legitimately send, and silently substituting one would corrupt the result — the
+-- rejection surfaces as a decoding failure carrying the given 'Report'.
+refineDecoding :: (b -> a) -> (a -> Either Report b) -> Scalar a -> Scalar b
+refineDecoding widen refine Scalar {..} =
+  Scalar
+    { binaryEncoder = \resolver -> binaryEncoder resolver . widen,
+      binaryDecoder = \resolver -> fmap (>>= refine) (binaryDecoder resolver),
+      textualEncoder = \resolver -> textualEncoder resolver . widen,
+      textualDecoder = \resolver ->
+        textualDecoder resolver >>= \a ->
+          case refine a of
+            Right b -> pure b
+            Left report -> fail (Text.unpack (toText report)),
+      ..
+    }
 
 -- | Build a 'Scalar' for a PostgreSQL enum type from a label↔value association list.
 -- The schema name, type name, and label\/value pairs must match the server-side definition.

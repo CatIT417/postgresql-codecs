@@ -3,8 +3,9 @@ module PostgresqlCodecs.IsScalar where
 import Data.Scientific (Scientific)
 import qualified GHC.TypeLits as TypeLits
 import PostgresqlCodecs.Core (Scalar)
+import qualified PostgresqlCodecs.IsScalar.Scientific
 import PostgresqlCodecs.Prelude
-import PostgresqlCodecs.Scalar (binaryPrimitive)
+import PostgresqlCodecs.Scalar (binaryPrimitive, refineDecoding)
 import qualified PostgresqlTypes as Types
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Bytea
@@ -375,14 +376,15 @@ instance IsScalar UUID where
 -- Encoding silently clamps to PostgreSQL's numeric limits (131072 digits before the decimal
 -- point, 16383 after).
 --
--- Decoding silently maps @NaN@, @Infinity@ and @-Infinity@ to @0@ — 'Scientific' can represent
--- none of the three, so this is the sharpest case for reaching for 'Types.Numeric' instead: a
--- column that can hold those values cannot be read back faithfully through 'Scientific' at all.
+-- Decoding /fails/ on @NaN@, @Infinity@ and @-Infinity@: 'Scientific' can represent none of the
+-- three, and there is no value to substitute that would not be a lie. This is the one place the
+-- convenience layer rejects rather than normalizes, because the alternative is silent corruption
+-- rather than an approximation. Decode as 'Types.Numeric' if the column can hold those values.
 instance IsScalar Scientific where
   scalar =
-    invmap
-      PostgresqlTypes.Numeric.normalizeToScientific
+    refineDecoding
       PostgresqlTypes.Numeric.normalizeFromScientific
+      PostgresqlCodecs.IsScalar.Scientific.refineFromNumeric
       (binaryPrimitive @(Types.Numeric 0 0))
 
 -- | Maps to @int4range@.
@@ -413,12 +415,13 @@ instance IsScalar (Types.Range UTCTime) where
 
 -- | Maps to @numrange@ over unconstrained @numeric@.
 --
--- Each bound normalizes as described for 'Scientific'.
+-- Each bound encodes and decodes as described for 'Scientific' — in particular, a bound of
+-- @NaN@, @Infinity@ or @-Infinity@ fails the decode of the whole range.
 instance IsScalar (Types.Range Scientific) where
   scalar =
-    invmap
-      (fmap PostgresqlTypes.Numeric.normalizeToScientific)
+    refineDecoding
       (fmap PostgresqlTypes.Numeric.normalizeFromScientific)
+      (traverse PostgresqlCodecs.IsScalar.Scientific.refineFromNumeric)
       (binaryPrimitive @(Types.Range (Types.Numeric 0 0)))
 
 -- | Maps to @int4multirange@.
@@ -449,10 +452,11 @@ instance IsScalar (Types.Multirange UTCTime) where
 
 -- | Maps to @nummultirange@ over unconstrained @numeric@.
 --
--- Each bound of each range normalizes as described for 'Scientific'.
+-- Each bound of each range encodes and decodes as described for 'Scientific' — in particular, a
+-- bound of @NaN@, @Infinity@ or @-Infinity@ anywhere fails the decode of the whole multirange.
 instance IsScalar (Types.Multirange Scientific) where
   scalar =
-    invmap
-      (fmap PostgresqlTypes.Numeric.normalizeToScientific)
+    refineDecoding
       (fmap PostgresqlTypes.Numeric.normalizeFromScientific)
+      (traverse PostgresqlCodecs.IsScalar.Scientific.refineFromNumeric)
       (binaryPrimitive @(Types.Multirange (Types.Numeric 0 0)))
