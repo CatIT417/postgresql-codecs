@@ -42,6 +42,18 @@ import qualified PostgresqlTypes.Uuid
 -- schema introspection) — never as a bypass for a type that already has, or should have, an
 -- instance.
 --
+-- The instances shipped here come in two layers with a deliberately different contract. The
+-- @postgresql-types@ wrapper types ('Types.Text', 'Types.Timestamptz', 'Types.Numeric', ...)
+-- model the PostgreSQL domain exactly — invalidity is unrepresentable in the type rather than
+-- merely detected, so their conversions are exact in both directions. The standard Haskell types
+-- ('Text', 'UTCTime', 'Scientific', ...) are a convenience layer riding on those, and their
+-- conversions are total but best-effort: anything the PostgreSQL type cannot represent gets
+-- silently normalized — out-of-range values clamped, excess precision rounded, unrepresentable
+-- characters dropped. Encoding a standard Haskell type therefore never fails, and never has to be
+-- handled at the call site; the price is that a value can reach the database adjusted. Each such
+-- instance documents its own normalization. When a column's exact domain matters, use the
+-- corresponding wrapper type instead — that is what it is for.
+--
 -- There are, and deliberately can never be, instances for 'Maybe' or an array\/vector type:
 -- nullability and dimensionality are chosen explicitly at each 'PostgresqlCodecs.column'\/
 -- 'PostgresqlCodecs.param'\/'PostgresqlCodecs.field' call site, and 'Scalar' itself has no way to
@@ -315,7 +327,7 @@ instance IsScalar Double where
 
 -- | Maps to @text@.
 --
--- Encoding silently strips any NUL characters, which @text@ cannot represent.
+-- Encoding silently strips NUL characters, which @text@ cannot represent. Decoding is exact.
 instance IsScalar Text where
   scalar = invmap PostgresqlTypes.Text.toText PostgresqlTypes.Text.normalizeFromText binaryPrimitive
 
@@ -325,19 +337,32 @@ instance IsScalar ByteString where
 
 -- | Maps to @date@.
 --
--- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+-- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD). Decoding is
+-- exact.
 instance IsScalar Day where
   scalar = invmap PostgresqlTypes.Date.toDay PostgresqlTypes.Date.normalizeFromDay binaryPrimitive
 
 -- | Maps to @time@.
+--
+-- Encoding silently rounds to microsecond resolution ('TimeOfDay' is picosecond-resolution) and
+-- clamps to @time@'s range (@00:00:00@ to @24:00:00@). Decoding is exact.
 instance IsScalar TimeOfDay where
   scalar = invmap PostgresqlTypes.Time.toTimeOfDay PostgresqlTypes.Time.normalizeFromTimeOfDay binaryPrimitive
 
 -- | Maps to @timestamp@.
+--
+-- Encoding silently rounds to microsecond resolution ('LocalTime' is picosecond-resolution) and
+-- clamps to @timestamp@'s range (4713 BC to 294276 AD). Decoding is exact.
 instance IsScalar LocalTime where
   scalar = invmap PostgresqlTypes.Timestamp.toLocalTime PostgresqlTypes.Timestamp.normalizeFromLocalTime binaryPrimitive
 
 -- | Maps to @timestamptz@.
+--
+-- Encoding silently rounds to microsecond resolution ('UTCTime' is picosecond-resolution) and
+-- clamps to @timestamptz@'s range (4713 BC to 294276 AD). Decoding is exact.
+--
+-- The rounding matters in practice: 'Data.Time.Clock.getCurrentTime' routinely carries
+-- sub-microsecond jitter, so a stored timestamp will usually differ from the value handed in.
 instance IsScalar UTCTime where
   scalar = invmap PostgresqlTypes.Timestamptz.toUtcTime PostgresqlTypes.Timestamptz.normalizeFromUtcTime binaryPrimitive
 
@@ -347,8 +372,12 @@ instance IsScalar UUID where
 
 -- | Maps to unconstrained @numeric@.
 --
--- Encoding silently maps @NaN@\/@Infinity@\/@-Infinity@ (which 'Scientific' cannot represent) to
--- @0@, and clamps to PostgreSQL's numeric limits.
+-- Encoding silently clamps to PostgreSQL's numeric limits (131072 digits before the decimal
+-- point, 16383 after).
+--
+-- Decoding silently maps @NaN@, @Infinity@ and @-Infinity@ to @0@ — 'Scientific' can represent
+-- none of the three, so this is the sharpest case for reaching for 'Types.Numeric' instead: a
+-- column that can hold those values cannot be read back faithfully through 'Scientific' at all.
 instance IsScalar Scientific where
   scalar =
     invmap
@@ -366,19 +395,25 @@ instance IsScalar (Types.Range Int64) where
 
 -- | Maps to @daterange@.
 --
--- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+-- Each bound normalizes as described for 'Day'.
 instance IsScalar (Types.Range Day) where
   scalar = invmap (fmap PostgresqlTypes.Date.toDay) (fmap PostgresqlTypes.Date.normalizeFromDay) binaryPrimitive
 
 -- | Maps to @tsrange@.
+--
+-- Each bound normalizes as described for 'LocalTime'.
 instance IsScalar (Types.Range LocalTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamp.toLocalTime) (fmap PostgresqlTypes.Timestamp.normalizeFromLocalTime) binaryPrimitive
 
 -- | Maps to @tstzrange@.
+--
+-- Each bound normalizes as described for 'UTCTime'.
 instance IsScalar (Types.Range UTCTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
 
 -- | Maps to @numrange@ over unconstrained @numeric@.
+--
+-- Each bound normalizes as described for 'Scientific'.
 instance IsScalar (Types.Range Scientific) where
   scalar =
     invmap
@@ -396,19 +431,25 @@ instance IsScalar (Types.Multirange Int64) where
 
 -- | Maps to @datemultirange@.
 --
--- Encoding silently clamps dates outside @date@'s range (4713 BC to 5874897 AD).
+-- Each bound of each range normalizes as described for 'Day'.
 instance IsScalar (Types.Multirange Day) where
   scalar = invmap (fmap PostgresqlTypes.Date.toDay) (fmap PostgresqlTypes.Date.normalizeFromDay) binaryPrimitive
 
 -- | Maps to @tsmultirange@.
+--
+-- Each bound of each range normalizes as described for 'LocalTime'.
 instance IsScalar (Types.Multirange LocalTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamp.toLocalTime) (fmap PostgresqlTypes.Timestamp.normalizeFromLocalTime) binaryPrimitive
 
 -- | Maps to @tstzmultirange@.
+--
+-- Each bound of each range normalizes as described for 'UTCTime'.
 instance IsScalar (Types.Multirange UTCTime) where
   scalar = invmap (fmap PostgresqlTypes.Timestamptz.toUtcTime) (fmap PostgresqlTypes.Timestamptz.normalizeFromUtcTime) binaryPrimitive
 
 -- | Maps to @nummultirange@ over unconstrained @numeric@.
+--
+-- Each bound of each range normalizes as described for 'Scientific'.
 instance IsScalar (Types.Multirange Scientific) where
   scalar =
     invmap
