@@ -32,46 +32,61 @@ Result          - full result-set strategy (oneRow, someRow, manyRows, rowsAffec
 
 ## Quick example
 
-Every standard PostgreSQL type already has an `IsScalar` instance, so `scalar` resolves to its
-codec from context. Write your own instance for a type with exactly one obvious representation —
-an enum or a composite, typically:
+`column`, `param`, and `field` resolve a type's codec from its `IsScalar` instance — they do not
+take a `Scalar` value directly. Every standard PostgreSQL type, and several plain Haskell types
+(`Int32`, `Int64`, `Text`, `Bool`, `Double`, `Day`, `LocalTime`, `UTCTime`, `UUID`, `ByteString`,
+`Scientific`, …), already has one. Write your own for an enum or composite:
 
 ```haskell
+import Data.Profunctor (lmap)
 import PostgresqlCodecs qualified
 
--- An enum scalar
+-- An enum scalar. The schema and type name must match the server-side `CREATE TYPE`.
+-- `enum` requires an `Ord` constraint on the value type.
 data Color = Red | Green | Blue
+  deriving (Eq, Ord, Show)
 
 instance PostgresqlCodecs.IsScalar Color where
-  scalar = PostgresqlCodecs.enum "public" "color"
-    [ ("red",   Red)
-    , ("green", Green)
-    , ("blue",  Blue)
-    ]
+  scalar =
+    PostgresqlCodecs.enum "public" "color"
+      [ ("red", Red),
+        ("green", Green),
+        ("blue", Blue)
+      ]
 
--- A composite scalar
-data Point = Point { x :: PostgresqlTypes.Int4, y :: PostgresqlTypes.Int4 }
+-- A composite scalar. Each field is `field <dimensionality> <nullability>`; select the
+-- input record field with `lmap`, since `Fields` is a `Profunctor`.
+data Point = Point {x :: Int32, y :: Int32}
 
 instance PostgresqlCodecs.IsScalar Point where
-  scalar = PostgresqlCodecs.composite "public" "point" $
-    Point
-      <$> PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.x)
-      <*> PostgresqlCodecs.field PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable (.y)
+  scalar =
+    PostgresqlCodecs.composite "public" "point" $
+      Point
+        <$> lmap (.x) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
+        <*> lmap (.y) (PostgresqlCodecs.field PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable)
 
--- Encoder as a query parameter and decode as a result column
-param :: PostgresqlCodecs.Params Point
-param = PostgresqlCodecs.param PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+-- A query-parameter encoder and a result-column decoder both reuse the instance:
+pointParam :: PostgresqlCodecs.Params Point
+pointParam = PostgresqlCodecs.param PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 
--- Decoder as a result column
-col :: PostgresqlCodecs.Columns Point
-col = PostgresqlCodecs.column PostgresqlCodecs.scalar PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
+pointColumn :: PostgresqlCodecs.Columns Point
+pointColumn = PostgresqlCodecs.column PostgresqlCodecs.d0 PostgresqlCodecs.nonNullable
 ```
 
-If a type needs more than one PostgreSQL representation (e.g. mapped against two different
-schemas, or a test-only variant), skip the instance and keep building and naming `Scalar` values
-explicitly (`enum`/`composite`, or the `Scalar` record constructor from `PostgresqlCodecs.Core` for a
-wire format those don't cover), and pass them to `columnWith`/`paramWith`/`fieldWith`. A class
-instance is a single, coherence-checked, global choice per type, so it can't express that.
+Dimensionality (`d0` for a scalar, `d1`–`d6` for an N-dimensional array over some
+`Dimension` like `vector`) and nullability (`nonNullable` / `nullable`) are chosen at each call
+site — there is, deliberately, no `IsScalar` instance for `Maybe` or an array/vector type. To
+decode several columns into one row, combine `Columns` values applicatively
+(`Functor` / `Applicative`); to encode several parameters, combine `Params` values with their
+`Semigroup` / `Monoid` instances (`Contravariant`).
+
+A type that needs more than one PostgreSQL representation should not share one Haskell type across
+both — a class instance is a single, global, coherence-checked choice per type, so it can't express
+that. Define a distinct newtype per representation, each with its own instance. The
+`columnWith` / `paramWith` / `fieldWith` trio takes an explicit `Scalar` instead of an instance,
+but it exists only for a type with no static representation to hang an instance on (e.g. a codec
+resolved at runtime from schema introspection) — never as a bypass for a type that already has, or
+should have, an instance.
 
 ## For driver authors
 
