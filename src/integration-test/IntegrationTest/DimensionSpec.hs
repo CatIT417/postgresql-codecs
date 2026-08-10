@@ -8,8 +8,8 @@ import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Int8
-import Test.Hspec
 import Prelude
+import Test.Hspec
 
 spec :: SpecHook.HookedSpec
 spec = do

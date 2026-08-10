@@ -18,9 +18,9 @@ import Data.Word (Word32)
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified IntegrationTest.Integrations.Pq.RowDecoder as RowDecoder
 import qualified PostgresqlCodecs.Core as PostgresqlCodecs
+import Prelude
 import qualified PtrPoker.Write as Write
 import qualified TextBuilder
-import Prelude
 
 -- | Build a real 'PostgresqlCodecs.Resolver' by looking the referenced types up
 -- in the live catalog. An empty set skips the query entirely; anything the
@@ -148,12 +148,12 @@ execQuery conn sql ps result isBinaryEncodingAllowed input = do
               nrows <- Pq.ntuples pgResult
               if nrows /= 1
                 then
-                  pure $
-                    Left $
-                      fromString
-                        ( "Expected 1 row, got "
-                            <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
-                        )
+                  pure
+                    $ Left
+                    $ fromString
+                      ( "Expected 1 row, got "
+                          <> show (let Pq.Row nCI = nrows in fromIntegral nCI :: Int)
+                      )
                 else fmap (>>= toRow) (decodeRow resolver cols pgResult (Pq.Row 0))
           _ -> queryError pgResult
       PostgresqlCodecs.ManyRows cols initAcc foldRow fin ->

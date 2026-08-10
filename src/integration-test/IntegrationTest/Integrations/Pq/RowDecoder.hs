@@ -7,8 +7,8 @@ where
 import Data.String (fromString)
 import qualified Database.PostgreSQL.LibPQ as Pq
 import qualified PostgresqlCodecs.Core as PostgresqlCodecs
-import qualified PtrPeeker
 import Prelude
+import qualified PtrPeeker
 
 -- | A libpq-based row decoder that threads through column index state.
 newtype RowDecoder a

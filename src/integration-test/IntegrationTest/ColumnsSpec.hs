@@ -10,8 +10,8 @@ import qualified PostgresqlCodecs.Core as Core
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
-import Test.Hspec
 import Prelude
+import Test.Hspec
 
 -- ---------------------------------------------------------------------------
 -- Enum type for testing the resolved column OID.

@@ -21,8 +21,8 @@ import qualified PostgresqlTypes.Multirange
 import qualified PostgresqlTypes.Numeric
 import qualified PostgresqlTypes.Range
 import qualified PostgresqlTypes.Uuid
-import Test.Hspec
 import Prelude
+import Test.Hspec
 
 -- ---------------------------------------------------------------------------
 -- Enum type for testing

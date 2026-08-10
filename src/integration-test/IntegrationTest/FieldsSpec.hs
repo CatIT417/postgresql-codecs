@@ -10,8 +10,8 @@ import qualified IntegrationTest.SpecHook as SpecHook
 import qualified PostgresqlCodecs
 import qualified PostgresqlTypes
 import qualified PostgresqlTypes.Int4
-import Test.Hspec
 import Prelude
+import Test.Hspec
 
 -- ---------------------------------------------------------------------------
 -- Composite types from shared test schema

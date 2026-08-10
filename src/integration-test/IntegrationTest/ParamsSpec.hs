@@ -16,9 +16,9 @@ import qualified PostgresqlTypes.Bool
 import qualified PostgresqlTypes.Float8
 import qualified PostgresqlTypes.Int4
 import qualified PostgresqlTypes.Int8
+import Prelude
 import qualified PtrPoker.Write as Write
 import Test.Hspec
-import Prelude
 
 -- ---------------------------------------------------------------------------
 -- Enum type for testing the resolved parameter OID

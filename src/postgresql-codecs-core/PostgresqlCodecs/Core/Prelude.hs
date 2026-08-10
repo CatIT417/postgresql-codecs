@@ -31,5 +31,5 @@ import Data.Text as Exports (Text)
 import Data.Traversable as Exports
 import Data.Tuple as Exports
 import Data.Word as Exports
-import TextBuilder as Exports (TextBuilder)
 import Prelude as Exports hiding (all, and, any, concat, concatMap, elem, foldl, foldl1, foldr, foldr1, id, mapM, mapM_, maximum, minimum, notElem, or, product, sequence, sequence_, sum, (.))
+import TextBuilder as Exports (TextBuilder)

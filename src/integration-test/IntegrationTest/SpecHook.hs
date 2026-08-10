@@ -5,10 +5,10 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Pool as Pool
 import qualified Data.Text as Text
 import qualified Database.PostgreSQL.LibPQ as PQ
+import Prelude
 import Test.Hspec
 import qualified TestContainers.Hspec as TestContainers
 import qualified TestcontainersPostgresql as TcPg
-import Prelude
 
 data Env = Env
   { pool :: Pool.Pool PQ.Connection,
