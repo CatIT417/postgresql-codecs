@@ -245,7 +245,7 @@ scalarRoundtrip conn isBinary scalar val pgType =
 -- | Decode the result of an expression the server evaluates itself, feeding the input in as
 -- @text@ for the server to cast.
 --
--- Needed wherever the value under test is one the codec being exercised cannot encode — the
+-- Needed wherever the value under test is one the codec being exercised cannot encode - the
 -- rejected @numeric@ specials have no 'Scientific' to send them as, so they have to originate
 -- server-side.
 decodeExpression ::
@@ -274,7 +274,7 @@ expectFailingInput expected = \case
 -- | Restate a container of 'Scientific' over the wrapper type, for assertion purposes only.
 --
 -- 'PostgresqlTypes.Range' and 'PostgresqlTypes.Multirange' derive 'Show' through their
--- @IsPrimitive@ instance, which exists only for range elements — and 'Scientific' deliberately is
+-- @IsPrimitive@ instance, which exists only for range elements - and 'Scientific' deliberately is
 -- not one. Mapping back to 'PostgresqlTypes.Numeric' recovers a printable value. Lossless here
 -- because the bounds under test are well inside the numeric limits.
 asNumeric :: (Functor f) => f Scientific -> f (PostgresqlTypes.Numeric 0 0)

@@ -25,7 +25,7 @@ import qualified PostgresqlTypes.Uuid
 -- | Associates a Haskell type with its one canonical 'Scalar' codec.
 --
 -- 'PostgresqlCodecs.column', 'PostgresqlCodecs.param' and 'PostgresqlCodecs.field' require an
--- instance — there is no way to hand them a 'Scalar' value directly. This forces every Haskell
+-- instance - there is no way to hand them a 'Scalar' value directly. This forces every Haskell
 -- type used in a codec to have exactly one, named, global PostgreSQL representation, rather than
 -- letting business logic about how to encode a type leak into ad-hoc 'Scalar' values scattered
 -- across call sites. An instance is expected to be defined in terms of
@@ -34,31 +34,31 @@ import qualified PostgresqlTypes.Uuid
 -- from "PostgresqlCodecs.Core" for raw authorship.
 --
 -- A type that needs more than one representation (e.g. the same enum mapped against two
--- different PostgreSQL schemas) should not share one Haskell type across both — a typeclass
+-- different PostgreSQL schemas) should not share one Haskell type across both - a typeclass
 -- instance is a single, global, coherence-checked choice per type, so it can't express that.
 -- Define a distinct newtype per representation instead, each with its own instance.
 -- 'PostgresqlCodecs.columnWith'\/'PostgresqlCodecs.paramWith'\/'PostgresqlCodecs.fieldWith'
 -- remain as an explicit escape hatch taking a 'Scalar' value directly, but only for types with
 -- no fixed static representation to hang an instance on (e.g. a codec resolved at runtime from
--- schema introspection) — never as a bypass for a type that already has, or should have, an
+-- schema introspection) - never as a bypass for a type that already has, or should have, an
 -- instance.
 --
 -- The instances shipped here come in two layers with a deliberately different contract. The
 -- @postgresql-types@ wrapper types ('Types.Text', 'Types.Timestamptz', 'Types.Numeric', ...)
--- model the PostgreSQL domain exactly — invalidity is unrepresentable in the type rather than
+-- model the PostgreSQL domain exactly - invalidity is unrepresentable in the type rather than
 -- merely detected, so their conversions are exact in both directions. The standard Haskell types
 -- ('Text', 'UTCTime', 'Scientific', ...) are a convenience layer riding on those, and their
 -- conversions are total but best-effort: anything the PostgreSQL type cannot represent gets
--- silently normalized — out-of-range values clamped, excess precision rounded, unrepresentable
+-- silently normalized - out-of-range values clamped, excess precision rounded, unrepresentable
 -- characters dropped. Encoding a standard Haskell type therefore never fails, and never has to be
 -- handled at the call site; the price is that a value can reach the database adjusted. Each such
 -- instance documents its own normalization. When a column's exact domain matters, use the
--- corresponding wrapper type instead — that is what it is for.
+-- corresponding wrapper type instead - that is what it is for.
 --
 -- There are, and deliberately can never be, instances for 'Maybe' or an array\/vector type:
 -- nullability and dimensionality are chosen explicitly at each 'PostgresqlCodecs.column'\/
 -- 'PostgresqlCodecs.param'\/'PostgresqlCodecs.field' call site, and 'Scalar' itself has no way to
--- represent "nullable" or "array of" — there is no field to fill in for such an instance.
+-- represent "nullable" or "array of" - there is no field to fill in for such an instance.
 class IsScalar a where
   scalar :: Scalar a
 
@@ -287,7 +287,7 @@ instance IsScalar (Types.Multirange Types.Timestamptz) where
 --
 -- A handful of common standard-library types get an instance too, each riding on the
 -- corresponding @postgresql-types@ wrapper's instance above via 'invmap'. This is not an attempt
--- to cover every type in the section above with a plain-Haskell counterpart — types with no
+-- to cover every type in the section above with a plain-Haskell counterpart - types with no
 -- single obvious Haskell representation (e.g. 'Types.Numeric', 'Types.Money', 'Types.Char' vs.
 -- 'Types.Varchar' vs. 'Types.Bpchar' vs. 'Types.Citext' all wanting @Text@) are left to be
 -- addressed with an explicitly named 'Scalar' instead.
@@ -296,7 +296,7 @@ instance IsScalar (Types.Multirange Types.Timestamptz) where
 -- types above that has a range-element counterpart ('Int32', 'Int64', 'Day', 'LocalTime',
 -- 'UTCTime'), riding on 'fmap' over the corresponding wrapper-typed range\/multirange instance.
 --
--- 'Scientific' maps to unconstrained @numeric@ (@Types.Numeric 0 0@ — see its Haddock), the only
+-- 'Scientific' maps to unconstrained @numeric@ (@Types.Numeric 0 0@ - see its Haddock), the only
 -- precision\/scale choice with no column-specific meaning to pick for it. A column declared with
 -- an explicit @numeric(precision, scale)@ still needs 'Types.Numeric' directly. Its
 -- 'Types.Range'\/'Types.Multirange' get the same 'fmap' treatment as the other range-element
@@ -415,7 +415,7 @@ instance IsScalar (Types.Range UTCTime) where
 
 -- | Maps to @numrange@ over unconstrained @numeric@.
 --
--- Each bound encodes and decodes as described for 'Scientific' — in particular, a bound of
+-- Each bound encodes and decodes as described for 'Scientific' - in particular, a bound of
 -- @NaN@, @Infinity@ or @-Infinity@ fails the decode of the whole range.
 instance IsScalar (Types.Range Scientific) where
   scalar =
@@ -452,7 +452,7 @@ instance IsScalar (Types.Multirange UTCTime) where
 
 -- | Maps to @nummultirange@ over unconstrained @numeric@.
 --
--- Each bound of each range encodes and decodes as described for 'Scientific' — in particular, a
+-- Each bound of each range encodes and decodes as described for 'Scientific' - in particular, a
 -- bound of @NaN@, @Infinity@ or @-Infinity@ anywhere fails the decode of the whole multirange.
 instance IsScalar (Types.Multirange Scientific) where
   scalar =

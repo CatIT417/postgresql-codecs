@@ -107,7 +107,7 @@ field = fieldWith scalar
 -- nullability.
 --
 -- Reach for this only when @a@ has no fixed static representation to hang an 'IsScalar'
--- instance on — e.g. a codec resolved at runtime from schema introspection. Never use it to
+-- instance on - e.g. a codec resolved at runtime from schema introspection. Never use it to
 -- give a type that already has (or should have) an 'IsScalar' instance a different codec at
 -- some call site; that reintroduces the coupling 'IsScalar' exists to prevent. A type needing
 -- more than one representation should be a distinct newtype with its own instance instead.
@@ -119,7 +119,7 @@ fieldWith scalar dimensionality nullability =
           unresolvedTypes = scalar.unresolvedTypes,
           supportsBinary = scalar.supportsBinary,
           binaryEncoder = \resolver value ->
-            -- The field's own type slot holds the DECLARED type of the field — the array
+            -- The field's own type slot holds the DECLARED type of the field - the array
             -- type when the field is array-typed. The array header nested inside the
             -- payload holds the ELEMENT type. Conflating the two makes the server reject
             -- the whole record.
@@ -138,7 +138,7 @@ fieldWith scalar dimensionality nullability =
             contentSize <- PtrPeeker.fixed PtrPeeker.beSignedInt4
             let expectedOid = declaredOid scalar dimensionality.dims resolver
             -- A resolver that couldn't determine the type reports 0, which is not a real
-            -- OID to contradict — trust the wire in that case, same as before this check
+            -- OID to contradict - trust the wire in that case, same as before this check
             -- existed. Only a POSITIVE mismatch (both sides known, and disagreeing) is a
             -- real error; re-validating would otherwise hard-fail on every resolver miss.
             if expectedOid /= 0 && fromIntegral fieldOid /= expectedOid

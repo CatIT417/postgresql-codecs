@@ -16,7 +16,7 @@ data Format
     -- headers).
     Binary
   | -- | The parameter's textual encoder produces the value. The wire format
-    -- embeds no OIDs, so the textual encoder ignores its 'Resolver' — but the
+    -- embeds no OIDs, so the textual encoder ignores its 'Resolver' - but the
     -- parameter is still declared to the server by OID, so @oids@ needs a
     -- resolver either way.
     Textual

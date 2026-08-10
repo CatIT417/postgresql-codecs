@@ -15,8 +15,8 @@ data TypeOids = TypeOids
   }
   deriving stock (Eq, Show)
 
--- | Resolves a @(schemaName, typeName)@ pair — an empty schema name meaning
--- the default schema, resolved via @search_path@ — to its 'TypeOids'.
+-- | Resolves a @(schemaName, typeName)@ pair - an empty schema name meaning
+-- the default schema, resolved via @search_path@ - to its 'TypeOids'.
 --
 -- A driver builds exactly one 'Resolver' per statement, typically backed by
 -- a single catalogue lookup (e.g. via @to_regtype@) for the union of every
@@ -24,7 +24,7 @@ data TypeOids = TypeOids
 -- driver contract.
 --
 -- 'Resolver' is total: it returns @TypeOids 0 0@ for anything it cannot
--- resolve, rather than failing. For a scalar slot that degrades gracefully —
+-- resolve, rather than failing. For a scalar slot that degrades gracefully -
 -- PostgreSQL treats @0@ as its \"unspecified\" sentinel and either infers the
 -- type itself or reports a server-side error naming it. A binary array of an
 -- unresolved type, however, cannot be decoded at all: the array-header check
@@ -32,7 +32,7 @@ data TypeOids = TypeOids
 -- expected @0@ fails with a @Base OID mismatch@ report. See
 -- "PostgresqlCodecs.Core" for the full contract.
 --
--- Drivers should cache resolutions — the natural granularity is per
+-- Drivers should cache resolutions - the natural granularity is per
 -- connection, since the OIDs of user-defined types are stable within a
 -- database but differ across databases.
 type Resolver = Text -> Text -> TypeOids

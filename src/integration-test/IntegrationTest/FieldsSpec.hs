@@ -76,7 +76,7 @@ compositeWithArrayScalar =
     )
 
 -- | Declares its first field as @float4@ while the real server-side
--- @composite_point@ type has @int4@ there — same byte width, different OID,
+-- @composite_point@ type has @int4@ there - same byte width, different OID,
 -- so a mismatch wouldn't fail on size alone.
 data MismatchedPoint = MismatchedPoint {mpX :: PostgresqlTypes.Float4, mpY :: PostgresqlTypes.Int4}
   deriving (Eq, Show)

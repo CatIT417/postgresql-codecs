@@ -17,7 +17,7 @@ import qualified TextBuilder
 -- | OID of the scalar's own element type, resolved by name when not statically known.
 -- Returns 0 when the resolver cannot determine it.
 --
--- This is what goes into a binary array header — always the base OID, regardless of
+-- This is what goes into a binary array header - always the base OID, regardless of
 -- dimensionality. Contrast with 'declaredOid'.
 elementOid :: Scalar a -> Resolver -> Word32
 elementOid scalar resolver =
@@ -132,7 +132,7 @@ textualPrimitive =
 --
 -- This is the partial counterpart to 'invmap', whose 'Invariant' instance requires both
 -- directions to be total. Reach for it when the narrower type cannot represent some value the
--- server may legitimately send, and silently substituting one would corrupt the result — the
+-- server may legitimately send, and silently substituting one would corrupt the result - the
 -- rejection surfaces as a decoding failure carrying the given 'Report'.
 refineDecoding :: (b -> a) -> (a -> Either Report b) -> Scalar a -> Scalar b
 refineDecoding widen refine Scalar {..} =

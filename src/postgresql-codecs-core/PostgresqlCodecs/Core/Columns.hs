@@ -33,7 +33,7 @@ data Columns a = Columns
     -- | Transitive set of @(schema, name)@ pairs of referenced types whose base
     -- or array OID is not statically known and therefore must be resolved at runtime.
     unresolvedTypes :: Set (Text, Text),
-    -- | Expected type OID of each result column, in column order — for
+    -- | Expected type OID of each result column, in column order - for
     -- drivers that want to validate the shape of a result set against this
     -- decoder before decoding it. A value of 0 means the OID is not known,
     -- i.e. the type was not resolved.

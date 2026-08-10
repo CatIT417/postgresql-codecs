@@ -17,7 +17,7 @@ column = columnWith scalar
 -- | Build a single-column decoder from an explicit scalar, dimensionality, and nullability.
 --
 -- Reach for this only when @a@ has no fixed static representation to hang an 'IsScalar'
--- instance on — e.g. a codec resolved at runtime from schema introspection. Never use it to
+-- instance on - e.g. a codec resolved at runtime from schema introspection. Never use it to
 -- give a type that already has (or should have) an 'IsScalar' instance a different codec at
 -- some call site; that reintroduces the coupling 'IsScalar' exists to prevent. A type needing
 -- more than one representation should be a distinct newtype with its own instance instead.

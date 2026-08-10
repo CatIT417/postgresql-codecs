@@ -6,7 +6,7 @@
 -- deconstructs, and the small vocabulary ('ConsumesColumns', 'Resolver',
 -- 'TypeOids', 'Format') those records are written in.
 --
--- App developers normally never import this module — "PostgresqlCodecs"
+-- App developers normally never import this module - "PostgresqlCodecs"
 -- re-exports the codec types abstractly (without their constructors) so type
 -- signatures like @'Params' a@ and @'Result' a@ compile without reaching for
 -- core. /Driver authors/ import this module: they pattern-match on the records,
@@ -25,7 +25,7 @@
 -- driver author owes the library the following:
 --
 -- 1. Before executing a statement, collect the union of the @unresolvedTypes@
---    of everything about to be used — for this library's shape that is
+--    of everything about to be used - for this library's shape that is
 --    @params.unresolvedTypes <> 'unresolvedTypes' result@. An empty set means
 --    zero catalogue round-trips, which is the common case for codecs built only
 --    from statically-known primitive scalars.
@@ -36,7 +36,7 @@
 --    and @'Params'.binaryEncoder@ \/ @'Params'.textualEncoder@.
 -- 4. Understand what an unresolved type costs. 'Resolver' is total: it returns
 --    @'TypeOids' 0 0@ for anything it cannot resolve, @0@ being PostgreSQL's
---    \"unspecified\" sentinel. For a scalar slot that degrades gracefully — the
+--    \"unspecified\" sentinel. For a scalar slot that degrades gracefully - the
 --    server infers the type or reports an error naming it. For a binary array
 --    it does not: the library's own array-header check compares the expected
 --    element OID against the one the server sends, so an expected @0@ fails the
@@ -49,7 +49,7 @@
 --
 -- The textual wire format embeds no OIDs, so the textual encoders and decoders
 -- ignore their 'Resolver' argument; they still take one so drivers can treat
--- both wire formats uniformly. This applies to the codecs only — a textual
+-- both wire formats uniformly. This applies to the codecs only - a textual
 -- parameter is still declared to the server by OID, so @'Params'.oids@ needs a
 -- resolver regardless of wire format.
 module PostgresqlCodecs.Core
